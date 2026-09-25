@@ -26,13 +26,15 @@ globalThis.__T = {
   get pendingMissiles(){return pendingMissiles},
   get flare(){return flare}, get smokeLeft(){return smokeLeft}, get smokeId(){return smokeId},
   get bunkerDead(){return bunkerDead},
+  get viewMode(){return viewMode}, set viewMode(v){viewMode=v},
   UNITS, BASES, N, RECOMMEND, DEPLOY_TYPES, BUDGET, AI_PROFILES,
   fn: { genMap, stationable, computeVision, visionRange, computeMoveTargets, executeMove,
         strikeCell, katyushaStrike, strikeBase, strikeRange, canStrike,
         resolveMissiles, endTurn, checkWin, isDay, dayNo, spawnFromConfig, hasGround,
         randInt, key, unkey, manh, enemySizeClass, deploySpent,
         newGame, confirmDeploy, renderDeploy, deployConfigDefaults,
-        aiAct, aiActOne, aiAutoDeploy, aiDeployConfig, aiProf }
+        aiAct, aiActOne, aiAutoDeploy, aiDeployConfig, aiProf,
+        render, renderBoard, renderPanel, renderLog, cycleViewMode, renderSide, log }
 };
 `;
 function stubEl() {
@@ -162,6 +164,38 @@ F.newGame();
 ok(T.corps.length === 0 && T.phase === "deploy" && T.deploySide === 0, "aiSide=-1 时 newGame 不自动部署");
 F.aiAct(0);   // 热座下手动调用不报错即可（不该有副作用导致崩溃）
 ok(true, "aiAct 在热座模式下调用无异常");
+
+/* ---------- 6. vs AI：对玩家隐藏 AI 的行动与视角 ---------- */
+console.log("\n== 6. vs AI 视角隐藏 ==");
+T.aiSide = 1; T.aiDiff = "medium";          // 玩家=红，AI=蓝
+F.newGame();
+T.phase = "play"; T.corps.length = 0; T.nextId = 1;
+F.spawnFromConfig(0, { inf: 100 });          // 玩家红方驻红大本营 (3,3)
+F.spawnFromConfig(1, { inf: 100 });          // AI 蓝方驻蓝大本营 (17,17)
+T.acted.clear(); T.current = 0; T.gameOver = false; T.turnNo = 1;
+T.seen = [Array.from({ length: N }, () => Array(N).fill(false)),
+          Array.from({ length: N }, () => Array(N).fill(false))];
+F.render();
+const board1 = cache["board"].innerHTML;
+ok(board1.includes("corps red"), "玩家可见己方(红)单位");
+ok(!board1.includes("corps blue"), "AI(蓝)单位在玩家视野外时不渲染");
+ok(F.renderSide() === 0, "vs AI 渲染视角恒为玩家侧(红)");
+F.cycleViewMode();
+ok(T.viewMode === "auto", "vs AI 下视角切换被锁定为自动(己方)，上帝/AI 视角不可用");
+/* 模拟 AI 行动回合：current=蓝，渲染仍为红方视角 */
+T.current = 1;
+F.render();
+ok(!cache["board"].innerHTML.includes("corps blue"), "AI 行动回合中蓝方单位依然不渲染");
+ok(cache["board"].innerHTML.includes("corps red"), "AI 行动回合中玩家单位正常显示");
+/* AI 侧日志对玩家隐藏 */
+F.log("AI 内部战报测试", "blue", 1);
+F.renderLog();
+ok(!cache["log"].innerHTML.includes("AI 内部战报测试"), "AI 侧战报日志对玩家不可见");
+/* 恢复热座后上帝视角可用 */
+T.aiSide = -1;
+F.cycleViewMode();
+ok(T.viewMode === "red", "切回热座模式后视角循环恢复正常(auto→red)");
+T.aiSide = 1; T.viewMode = "auto";   // 还原
 
 console.log(`\n============== 单机 AI 测试结果 ==============`);
 console.log(`通过 ${passed} 项，失败 ${failed} 项`);

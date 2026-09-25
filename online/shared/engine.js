@@ -644,7 +644,7 @@ function log(msg, cls, side){
 function renderLog(){
   const el=document.getElementById("log");
   if(!el) return;
-  const rows=logEntries.filter(e=>e.side==null||e.side===current);
+  const rows=logEntries.filter(e=>e.side==null||e.side===renderSide());
   el.innerHTML=rows.map(e=>`<div class="entry ${e.cls}">${e.msg}</div>`).join("");
   el.scrollTop=el.scrollHeight;
 }
@@ -1256,8 +1256,9 @@ function showVictory(){
 
 /* ---------------- 渲染 ---------------- */
 function renderBoard(){
-  const godView = viewMode==="god";
-  const effSide = viewMode==="auto" ? current : (godView ? -1 : (viewMode==="red" ? 0 : 1));
+  const ps = renderSide();                    // 渲染视角方（vs AI 时恒为玩家）
+  const godView = viewMode==="god" && aiSide<0;   // vs AI 下上帝视角不可用
+  const effSide = viewMode==="auto" ? ps : (godView ? -1 : (viewMode==="red" ? 0 : 1));
   const noFog = (phase!=="play") || godView;
   const visR = phase==="play" ? computeVision(0) : null;
   const visB = phase==="play" ? computeVision(1) : null;
@@ -1267,7 +1268,7 @@ function renderBoard(){
   for(const m of pendingMissiles){
     // 发射方始终可见自己的导弹落点；防守方仅当落点处于大本营雷达范围(5格)才可见
     const [br,bc]=BASES[1-m.side];
-    if(current===m.side || Math.abs(m.r-br)+Math.abs(m.c-bc)<=5)
+    if(ps===m.side || Math.abs(m.r-br)+Math.abs(m.c-bc)<=5)
       misSet.set(key(m.r,m.c), m.side);
   }
   let html="";
@@ -1278,7 +1279,7 @@ function renderBoard(){
     for(let c=0;c<N;c++){
       const k=key(r,c);
       const v = noFog || vis.has(k);
-      const ev = seen[current][r][c];
+      const ev = seen[ps][r][c];
       const dim = !v && memoryFog && ev;
       let cls="cell";
       if(v || dim) cls += " t-"+terrain[r][c] + (bridge[r][c]?" bridge":"");
@@ -1325,8 +1326,8 @@ function renderBoard(){
 
       // 单位
       const stack = corps.filter(p=>p.alive && p.r===r && p.c===c);
-      const own = stack.filter(p=>p.side===current || godView);
-      const foes = stack.filter(p=>!godView && p.side!==current && unitVisibleTo(p,current,vis||new Set()));
+      const own = stack.filter(p=>p.side===ps || godView);
+      const foes = stack.filter(p=>!godView && p.side!==ps && unitVisibleTo(p,ps,vis||new Set()));
       if(own.length){
         let show=own[0];
         if(sp0 && sp0.alive && sp0.side===current && sp0.r===r && sp0.c===c && own.includes(sp0)) show=sp0;
@@ -1370,10 +1371,11 @@ function renderBoard(){
   document.getElementById("board").innerHTML=html;
 }
 function renderPanel(){
+  const ps = renderSide();            // vs AI 时恒为玩家侧
   const chip=document.getElementById("turnChip");
   chip.textContent=SIDE_NAME[current]+"行动"+(aiBusy?" · 🤖 AI 行动中":"");
   chip.className="turn-chip "+(current===0?"red":"blue");
-  const aliveOwn=corps.filter(p=>p.alive&&p.side===current).length;
+  const aliveOwn=corps.filter(p=>p.alive&&p.side===ps).length;
   document.getElementById("turnRound").textContent=`第 ${turnNo} 回合 · 第 ${dayNo()} 天 · 已行动 ${acted.size}/${aliveOwn}`;
   const dc=document.getElementById("dayChip");
   dc.textContent = isDay() ? "☀ 白天" : "🌙 夜晚";
@@ -1384,9 +1386,9 @@ function renderPanel(){
   const th=document.getElementById("threatText");
   let threat=false;
   for(const e of corps){
-    if(!e.alive||e.side===current||!U(e).air) continue;
+    if(!e.alive||e.side===ps||!U(e).air) continue;
     for(const p of corps){
-      if(!p.alive||p.side!==current) continue;
+      if(!p.alive||p.side!==ps) continue;
       if(manh(e,p)<=3){ threat=true; break; }
     }
     if(threat) break;
@@ -1404,7 +1406,7 @@ function renderPanel(){
     cmdArea.innerHTML="";
   } else {
     const u=U(cp);
-    const own = cp.side===current;
+    const own = cp.side===ps;
     const canCmd = own && !acted.has(cp.id) && !gameOver && mode==="idle";
     const st=[];
     if(cp.resting) st.push(`<span class="badge rest">休整中</span>`);
@@ -1654,6 +1656,8 @@ document.addEventListener("input", e=>{
 });
 
 /* ---------------- 上帝视角 ---------------- */
+/* 渲染视角方：vs AI 时恒为玩家侧——AI 的行动、视野、内部状态对玩家隐藏 */
+function renderSide(){ return aiSide>=0 ? 1-aiSide : current; }
 function viewLocked(){
   if(aiBusy) return true;
   if(phase!=="play") return false;
@@ -1669,6 +1673,9 @@ function renderViewBtn(){
   }
 }
 function cycleViewMode(){
+  if(aiSide>=0){                       // vs AI：锁定己方视角，禁止上帝/AI 侧视角（防窥探 AI）
+    viewMode="auto"; renderViewBtn(); render(); return;
+  }
   const order=["auto","red","blue","god"];
   viewMode=order[(order.indexOf(viewMode)+1)%order.length];
   if(viewLocked()){ selId=null; mode="idle"; modeData={}; }
