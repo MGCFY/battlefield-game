@@ -57,6 +57,16 @@ let memoryFog = true;
   let viewMode = "auto";  // 视角：auto=跟随当前方 red=红方 blue=蓝方 god=上帝
   let cur={r:0,c:0};      // 键盘光标
 
+/* ---------------- 单机 AI 对手状态 ---------------- */
+let aiSide=-1;          // -1=热座双人；0=红方AI；1=蓝方AI
+let aiDiff="medium";    // easy | medium | hard（对局中可随时切换，立即生效）
+let aiBusy=false;       // AI 回合动画播放中（锁定玩家输入）
+let aiFast=false;       // 快进标记
+let aiTimer=null, aiQueue=[];
+/* 定时器兼容：部分无 DOM 测试沙箱未注入 setTimeout/clearTimeout */
+const aiSetT  = (typeof setTimeout==="function")   ? setTimeout   : function(){ return 0; };
+const aiClearT= (typeof clearTimeout==="function") ? clearTimeout : function(){};
+
 /* ---------------- 工具 ---------------- */
 const randInt = (a,b)=> a + Math.floor(Math.random()*(b-a+1));
 const manh = (a,b)=> Math.abs(a.r-b.r) + Math.abs(a.c-b.c);   // 曼哈顿距离（菱形）
@@ -225,6 +235,7 @@ function enemySizeClass(stack){
 
 /* ---------------- 部署 ---------------- */
 function newGame(){
+  aiStop();                 // 兜底：清掉可能残留的 AI 定时器
   genMap();
   corps=[]; nextId=1; acted.clear(); selId=null;
   current=0; turnNo=1; gameOver=false; victoryShown=false;
@@ -237,6 +248,7 @@ function newGame(){
   document.getElementById("log").innerHTML="";
   render();          // 部署阶段先让双方看清地形（此时尚无迷雾）
   renderDeploy();
+  if(aiSide===0) aiAutoDeploy();   // 红方为 AI：自动部署后进入蓝方（人类）部署
 }
 function deployConfigDefaults(){
   const o={}; for(const t of DEPLOY_TYPES) o[t]=0; return o;
@@ -316,7 +328,10 @@ function confirmDeploy(){
   if(!ground){ alert("必须至少采购 1 支地面兵团。"); return; }
   spawnFromConfig(deploySide, deployCfg);
   log(`${SIDE_NAME[deploySide]} 部署完成，投入 ${deploySpent(deployCfg)} 积分。`, deploySide===0?"red":"blue");
-  if(deploySide===0){ deploySide=1; deployCfg=null; phase="handoff"; renderDeploy(); }
+  if(deploySide===0){
+    deploySide=1; deployCfg=null; phase="handoff"; renderDeploy();
+    if(aiSide===1) aiAutoDeploy();   // 蓝方为 AI：跳过移交，直接自动部署进入对局
+  }
   else { phase="play"; deployCfg=null; viewMode="auto"; renderViewBtn(); document.getElementById("deployWrap").classList.add("hidden"); startPlay(); }
 }
 function spawnFromConfig(side, cfg){
@@ -336,6 +351,7 @@ function startPlay(){
   log("全员集结完毕，战斗开始！红方先行。", "sys", null);
   log("☀ 白天（第 1 天）· 视野范围正常。", "sys", null);
   render();
+  if(aiSide===current && !gameOver) runAiTurn();   // 红方为 AI：开局即触发 AI 回合
 }
 
 /* ---------------- 战斗：近战损耗 ---------------- */
@@ -955,6 +971,7 @@ function endTurn(){
   acted.clear(); selId=null; mode="idle"; modeData={};
   log(`轮到 ${SIDE_NAME[current]} 行动（第 ${turnNo} 回合）`);
   render();
+  if(!gameOver && aiSide===current) runAiTurn();   // 轮到 AI：启动 AI 回合
 }
 function onNewRound(wasDay){
   resolveMissiles();
@@ -967,6 +984,230 @@ function onNewRound(wasDay){
     log(`⏱ 时间转换 → ${isDay()?"☀ 白天":"🌙 夜晚"}（第 ${dayNo()} 天）`, "sys", null);
     log(isDay()?"白天视野恢复。":"夜晚：除侦察兵(-2格外)所有兵团视野 -1 格。", "sys", null);
   }
+}
+
+/* ---------------- 单机 AI 对手 ----------------
+   决策逻辑移植自 sim-game-v3.js actSide（40 局 AI vs AI 验证无异常），
+   在此基础上按难度分级：行动概率 / 目标智能 / 部署配置 / 思考节奏。 */
+const AI_PROFILES = {
+  easy:   { label:"简单", restP:.20, loadP:.45, strikeP:.30, throwP:.12, missileP:.20, buildP:.32, splitP:.03, aimP:.30, delay:340 },
+  medium: { label:"中等", restP:.10, loadP:.60, strikeP:.50, throwP:.18, missileP:.35, buildP:.25, splitP:.05, aimP:.60, delay:220 },
+  hard:   { label:"困难", restP:.04, loadP:.90, strikeP:.85, throwP:.22, missileP:.55, buildP:.12, splitP:.04, aimP:.95, delay:130 },
+};
+const aiProf = ()=> AI_PROFILES[aiDiff] || AI_PROFILES.medium;
+
+function aiVisCells(p, vis, range){
+  const out=[];
+  for(const k of vis){
+    const q=unkey(k);
+    if(q.r===p.r && q.c===p.c) continue;
+    if(manh(q,p)<=range) out.push(q);
+  }
+  return out;
+}
+/* 选格：aimP 概率下优先选“可见敌军所在格”（按总价值最高），否则随机 */
+function aiPickCell(p, vis, range){
+  const prof=aiProf();
+  const cells=aiVisCells(p,vis,range);
+  if(!cells.length) return null;
+  const foes=cells.filter(q=>corps.some(e=>e.alive&&e.side!==p.side&&e.r===q.r&&e.c===q.c));
+  if(foes.length && Math.random()<prof.aimP){
+    let best=foes[0], bv=-1;
+    for(const q of foes){
+      let v=0;
+      for(const e of corps) if(e.alive&&e.side!==p.side&&e.r===q.r&&e.c===q.c) v+=e.troops*(U(e).cost||1);
+      if(v>bv){ bv=v; best=q; }
+    }
+    return best;
+  }
+  return cells[randInt(0,cells.length-1)];
+}
+function aiFreeAdjacent(p){
+  const slots=[];
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(!dr&&!dc) continue;
+    const r=p.r+dr,c=p.c+dc;
+    if(!stationable(r,c)) continue;
+    if(corps.some(q=>q.alive&&q.r===r&&q.c===c)) continue;
+    slots.push([r,c]);
+  }
+  return slots;
+}
+/* 单单位决策（同步、纯逻辑，供动画驱动与测试复用） */
+function aiActOne(p, vis){
+  if(!p.alive || acted.has(p.id)) return;
+  const u=U(p), prof=aiProf(), roll=Math.random();
+
+  // 休整
+  if(u.canRest && roll<prof.restP){ p.resting=true; acted.add(p.id); return; }
+
+  // 喀秋莎装填
+  if(p.type==="katyusha" && !p.ammo && Math.random()<prof.loadP){ p.ammo=true; acted.add(p.id); return; }
+
+  // 远程打击（优先瞄准可见敌军密集/高价值格）
+  if(u.ranged && canStrike(p) && Math.random()<prof.strikeP){
+    const q=aiPickCell(p,vis,strikeRange(p));
+    if(q){
+      if(p.type==="katyusha"){ katyushaStrike(p,q.r,q.c); p.ammo=false; }
+      else strikeCell(p,q.r,q.c,p.troops*strikeBase(p));
+      acted.add(p.id); return;
+    }
+  }
+
+  // 投掷照明弹 / 烟雾弹
+  if(u.throwable && Math.random()<prof.throwP && (p.flare>0||p.smoke>0)){
+    const q=aiPickCell(p,vis,visionRange(p));
+    if(q){
+      if(p.flare>0 && Math.random()<0.5){
+        p.flare--;
+        for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++)
+          if(q.r+dr>=0&&q.r+dr<N&&q.c+dc>=0&&q.c+dc<N) flare[q.r+dr][q.c+dc]=5;
+      } else if(p.smoke>0){
+        p.smoke--;
+        const id=smokeSeq++;
+        for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++)
+          if(q.r+dr>=0&&q.r+dr<N&&q.c+dc>=0&&q.c+dc<N){ smokeLeft[q.r+dr][q.c+dc]=5; smokeId[q.r+dr][q.c+dc]=id; }
+      }
+      acted.add(p.id); return;
+    }
+  }
+
+  // 轰炸机导弹
+  if(u.missile && p.missile>0 && Math.random()<prof.missileP){
+    const q=aiPickCell(p,vis,visionRange(p));
+    if(q){ p.missile--; pendingMissiles.push({r:q.r,c:q.c,side:p.side}); acted.add(p.id); return; }
+  }
+
+  // 步兵修工事 / 防空地堡（休整中的步兵）
+  if(p.type==="inf" && p.resting && Math.random()<prof.buildP){
+    if(bunker[p.r][p.c]<=0 && !bunkerDead[p.r][p.c] && Math.random()<0.3){
+      bunker[p.r][p.c]=3;
+    } else {
+      const slots=aiFreeAdjacent(p);
+      if(slots.length){ const [r,c]=slots[randInt(0,slots.length-1)]; fort[r][c]=!fort[r][c]; }
+    }
+    acted.add(p.id); return;
+  }
+
+  // 分兵
+  if(p.troops>=20 && Math.random()<prof.splitP){
+    const slots=aiFreeAdjacent(p);
+    if(slots.length){
+      const n=Math.max(5,Math.floor(p.troops/2));
+      const [r,c]=slots[randInt(0,slots.length-1)];
+      corps.push({ id:nextId++, side:p.side, type:p.type, troops:n, r, c,
+                   resting:false, fatigue:0, alive:true, acc:0, dur:u.dur||0,
+                   flare:0, smoke:0, missile:0, ammo:false });
+      p.troops-=n;
+      acted.add(p.id); return;
+    }
+  }
+
+  // 移动：aimP 概率向敌方大本营推进，否则随机
+  const steps=p.type==="scout" ? (Math.random()<0.3?3:2) : u.move;
+  const mt=computeMoveTargets(p,steps,vis);
+  const opts=[...mt.empties.keys()].map(unkey).concat([...mt.corpsCells.keys()].map(unkey));
+  if(!opts.length){ acted.add(p.id); return; }
+  let pick;
+  if(Math.random()<prof.aimP){
+    const [er,ec]=BASES[1-p.side];
+    let best=Infinity;
+    for(const o of opts){
+      const d=Math.max(Math.abs(o.r-er),Math.abs(o.c-ec));
+      if(d<best){ best=d; pick=o; }
+    }
+  } else {
+    pick=opts[randInt(0,opts.length-1)];
+  }
+  const k=key(pick.r,pick.c);
+  const path=mt.empties.has(k)?mt.empties.get(k):mt.corpsCells.get(k).path;
+  if(!path){ acted.add(p.id); return; }
+  executeMove(p,path);
+  acted.add(p.id);
+}
+/* 整方行动（同步核心）：遍历全部存活未行动单位，末尾检查胜负 */
+function aiAct(side){
+  const vis=computeVision(side);
+  const list=corps.filter(p=>p.alive&&p.side===side&&!acted.has(p.id));
+  for(const p of list){
+    if(!p.alive||acted.has(p.id)) continue;   // 行动中可能被反击消灭
+    aiActOne(p,vis);
+  }
+  checkWin();
+}
+/* AI 部署配置：三档风格，均在 1000 预算内、保底地面兵团 */
+function aiTrimBudget(cfg){
+  const order=["bomber","recon","tank","katyusha","heavyArt","lightArt","cav","inf"];
+  while(deploySpent(cfg)>BUDGET){
+    let cut=false;
+    for(const t of order){ if(cfg[t]>0){ cfg[t]--; cut=true; break; } }
+    if(!cut) break;
+  }
+  return cfg;
+}
+function aiDeployConfig(){
+  let cfg;
+  if(aiDiff==="hard"){
+    // 装甲矛头+炮兵压制+侦察开雾+空军补刀（合计恰好 1000）
+    cfg={inf:150,cav:15,lightArt:10,scout:4,heavyArt:12,tank:4,katyusha:2,recon:1,bomber:1};
+  } else if(aiDiff==="easy"){
+    // 人海步兵、支援薄弱、结构松散
+    cfg={inf:randInt(350,550),cav:randInt(5,20),lightArt:randInt(5,15),scout:2,
+         heavyArt:randInt(2,6),tank:randInt(0,1),katyusha:0,recon:0,bomber:randInt(0,1)};
+  } else {
+    // 中等：均衡配置 + 小幅随机（与 sim-game 模拟风格一致）
+    cfg={inf:300+randInt(0,150),cav:20+randInt(0,15),lightArt:10+randInt(0,10),
+         scout:3+randInt(0,2),heavyArt:8+randInt(0,6),tank:randInt(1,3),
+         katyusha:randInt(0,1),recon:randInt(0,1),bomber:randInt(0,1)};
+  }
+  return aiTrimBudget(cfg);
+}
+function aiAutoDeploy(){
+  phase="deploy"; deploySide=aiSide; deployCfg=aiDeployConfig();
+  renderDeploy(); confirmDeploy();
+}
+
+/* ---- AI 回合驱动（异步逐单位、可观看、可快进） ---- */
+function runAiTurn(){
+  if(aiBusy||gameOver||phase!=="play"||aiSide<0||aiSide!==current) return;
+  aiBusy=true; aiQueue=corps.filter(p=>p.alive&&p.side===current&&!acted.has(p.id)).map(p=>p.id);
+  const fb=document.getElementById("aiFastBtn"); if(fb) fb.disabled=false;
+  render();
+  aiNext();
+}
+function aiNext(){
+  if(gameOver){
+    aiStop(); render();
+    if(!victoryShown) showVictory();
+    return;
+  }
+  const id=aiQueue.shift();
+  if(id==null){
+    aiStop();
+    endTurn();
+    return;
+  }
+  const p=getCorps(id);
+  if(p && p.alive && !acted.has(p.id)){
+    aiActOne(p, computeVision(current));
+    render();
+  }
+  if(aiFast){ aiFastForward(); return; }
+  aiTimer=aiSetT(aiNext, aiProf().delay);
+}
+function aiFastForward(){
+  if(!aiBusy) return;
+  aiFast=true;
+  aiClearT(aiTimer);
+  aiAct(current);          // 剩余未行动单位同步处理（已行动的自动跳过）
+  aiStop();
+  if(gameOver){ render(); if(!victoryShown) showVictory(); return; }
+  endTurn();
+}
+function aiStop(){
+  aiClearT(aiTimer); aiTimer=null; aiQueue=[];
+  aiBusy=false; aiFast=false;
+  const fb=document.getElementById("aiFastBtn"); if(fb) fb.disabled=true;
 }
 
 /* ---------------- 弹窗 ---------------- */
@@ -1130,7 +1371,7 @@ function renderBoard(){
 }
 function renderPanel(){
   const chip=document.getElementById("turnChip");
-  chip.textContent=SIDE_NAME[current]+"行动";
+  chip.textContent=SIDE_NAME[current]+"行动"+(aiBusy?" · 🤖 AI 行动中":"");
   chip.className="turn-chip "+(current===0?"red":"blue");
   const aliveOwn=corps.filter(p=>p.alive&&p.side===current).length;
   document.getElementById("turnRound").textContent=`第 ${turnNo} 回合 · 第 ${dayNo()} 天 · 已行动 ${acted.size}/${aliveOwn}`;
@@ -1306,7 +1547,9 @@ document.addEventListener("click", e=>{
   if(act==="new-game"){ newGame(); return; }
   if(act==="close-modal"){ closeModal(); if(gameOver&&!victoryShown) showVictory(); return; }
   if(act==="view-toggle"){ cycleViewMode(); return; }
+  if(act==="ai-fast"){ if(aiBusy) aiFastForward(); return; }   // 快进：AI 回合中随时可用
   if(phase!=="play") return;
+  if(aiBusy) return;                                           // AI 行动中锁定其余操作
   const cp = selId!=null ? getCorps(selId) : null;
   if(act==="select"){ if(viewLocked()) return; const p=getCorps(+btn.dataset.id); if(p&&p.alive){ selId=p.id; if(mode!=="idle") cancelMode(); render(); } return; }
   if(act==="end-turn") return endTurn();
@@ -1396,12 +1639,23 @@ document.addEventListener("keydown", e=>{
 document.getElementById("memFog").addEventListener("change", e=>{
   memoryFog=e.target.checked; render();
 });
+document.getElementById("modeSel").addEventListener("change", e=>{
+  const v=parseInt(e.target.value,10);
+  if(v===aiSide) return;
+  aiSide=v;
+  newGame();                 // 切换模式即重开局（AI 红方会自动部署）
+});
+document.getElementById("aiDiffSel").addEventListener("change", e=>{
+  aiDiff=e.target.value;     // 难度对局中随时切换，立即影响 AI 后续决策
+  log(`⚙ AI 难度已调整为「${aiProf().label}」（对局中即时生效）。`, "sys", null);
+});
 document.addEventListener("input", e=>{
   if(e.target && e.target.dataset && e.target.dataset.dt){ readDeployInputs(); updateDeployLeft(); }
 });
 
 /* ---------------- 上帝视角 ---------------- */
 function viewLocked(){
+  if(aiBusy) return true;
   if(phase!=="play") return false;
   if(viewMode==="god") return true;
   if(viewMode==="auto") return false;

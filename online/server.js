@@ -178,17 +178,18 @@ function sendTo(room, side, obj){
 
 /* ---------------- 意图校验 + 结算（全部复用引擎原函数） ---------------- */
 function fail(ws, msg){ try{ ws.send(JSON.stringify({ type:MSG.S_ERROR, msg })); }catch(e){} }
+function failSide(room, side, msg){ sendTo(room, side, { type:MSG.S_ERROR, msg }); }
 
 function handleIntent(room, side, msg){
   const { ctx, api } = room.eng;
   const fn = api.fn;
-  if(api.phase !== "play" || api.gameOver) return fail(ws, "当前不在对局阶段。");
-  if(api.current !== side)                  return fail(ws, "还没轮到你行动。");
+  if(api.phase !== "play" || api.gameOver) return failSide(room, side, "当前不在对局阶段。");
+  if(api.current !== side)                  return failSide(room, side, "还没轮到你行动。");
 
   const base = (id)=>{
     const cp = fn.getCorps(id);
-    if(!cp || !cp.alive || cp.side !== side) { fail(ws, "兵团不存在或不属于你。"); return null; }
-    if(api.acted.has(id))                    { fail(ws, "该兵团本回合已行动。"); return null; }
+    if(!cp || !cp.alive || cp.side !== side) { failSide(room, side, "兵团不存在或不属于你。"); return null; }
+    if(api.acted.has(id))                    { failSide(room, side, "该兵团本回合已行动。"); return null; }
     return cp;
   };
   const startMode = (cp, mode, modeData)=>{
@@ -204,13 +205,13 @@ function handleIntent(room, side, msg){
 
     case ACT.MOVE: {
       const cp = base(msg.id); if(!cp) return;
-      if(cp.fatigue>0 && cp.type==="scout") return fail(ws, "该侦察兵上回合奔袭3格，本回合不能移动。");
+      if(cp.fatigue>0 && cp.type==="scout") return failSide(room, side, "该侦察兵上回合奔袭3格，本回合不能移动。");
       const vis  = fn.computeVision(side);
       const targets = fn.computeMoveTargets(cp, api.UNITS[cp.type].move, vis);
       const k = msg.r+","+msg.c;
       let path = targets.empties.get(k);
       if(!path && targets.corpsCells.has(k)) path = targets.corpsCells.get(k).path;
-      if(!path) return fail(ws, "该格不在可移动范围内。");
+      if(!path) return failSide(room, side, "该格不在可移动范围内。");
       if(cp.type==="scout" && path.length>=3 && !msg.raid)
         return sendTo(room, side, { type:MSG.S_NEEDCONF, why:"raid" });
       startMode(cp, "move", { id:cp.id, steps:api.UNITS[cp.type].move, vis,
@@ -222,9 +223,9 @@ function handleIntent(room, side, msg){
 
     case ACT.SPLIT: {
       const cp = base(msg.id); if(!cp) return;
-      if(cp.troops < 6) return fail(ws, "兵力不足：新军团需≥5且原军团至少保留1。");
+      if(cp.troops < 6) return failSide(room, side, "兵力不足：新军团需≥5且原军团至少保留1。");
       const n = msg.n;
-      if(!(n>=5 && n<=cp.troops-1)) return fail(ws, `分出兵力须在 5 ~ ${cp.troops-1} 之间。`);
+      if(!(n>=5 && n<=cp.troops-1)) return failSide(room, side, `分出兵力须在 5 ~ ${cp.troops-1} 之间。`);
       const vis = fn.computeVision(side), u = api.UNITS[cp.type], spots = new Set();
       const okCell = (r,c)=> u.air ? fn.airStationable(r,c) : fn.stationable(r,c);
       for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
@@ -232,7 +233,7 @@ function handleIntent(room, side, msg){
         const nr=cp.r+dr, nc=cp.c+dc;
         if(okCell(nr,nc) && !fn.blocksMove(nr,nc,cp.side,vis)) spots.add(nr+","+nc);
       }
-      if(!spots.has(msg.r+","+msg.c)) return fail(ws, "该格不可放置新军团。");
+      if(!spots.has(msg.r+","+msg.c)) return failSide(room, side, "该格不可放置新军团。");
       startMode(cp, "split-place", { id:cp.id, n, spots });
       fn.boardSplitPlace(msg.r, msg.c);
       break;
@@ -241,7 +242,7 @@ function handleIntent(room, side, msg){
     case ACT.MERGE: {
       const cp = base(msg.id); if(!cp) return;
       const cands = fn.mergeCandidates(cp).map(o=>o.id);
-      if(!cands.includes(msg.targetId)) return fail(ws, "目标不是相邻同兵种友军。");
+      if(!cands.includes(msg.targetId)) return failSide(room, side, "目标不是相邻同兵种友军。");
       startMode(cp, "merge", { id:cp.id, cands:[msg.targetId] });
       fn.doMerge(0);
       break;
@@ -249,14 +250,14 @@ function handleIntent(room, side, msg){
 
     case ACT.REST: {
       const cp = base(msg.id); if(!cp) return;
-      if(!api.UNITS[cp.type].canRest) return fail(ws, "该兵种没有休整状态。");
+      if(!api.UNITS[cp.type].canRest) return failSide(room, side, "该兵种没有休整状态。");
       fn.doRest(cp);
       break;
     }
 
     case ACT.LOAD: {
       const cp = base(msg.id); if(!cp) return;
-      if(cp.type!=="katyusha") return fail(ws, "只有喀秋莎需要装填弹药。");
+      if(cp.type!=="katyusha") return failSide(room, side, "只有喀秋莎需要装填弹药。");
       cp.ammo = true;
       fn.log(`${api.SIDE_NAME[side]}${fn.typeName(cp.type)}#${cp.id} 完成弹药装填，可随时发动打击。`, side===0?"red":"blue");
       api.acted.add(cp.id);
@@ -267,10 +268,10 @@ function handleIntent(room, side, msg){
 
     case ACT.STRIKE: {
       const cp = base(msg.id); if(!cp) return;
-      if(!fn.canStrike(cp)) return fail(ws, fn.strikeHint(cp) || "当前无法打击。");
+      if(!fn.canStrike(cp)) return failSide(room, side, fn.strikeHint(cp) || "当前无法打击。");
       const cells = fn.strikeCells(cp);
-      if(!cells.size) return fail(ws, "射程内没有可打击的格子。");
-      if(!cells.has(msg.r+","+msg.c)) return fail(ws, "目标超出射程。");
+      if(!cells.size) return failSide(room, side, "射程内没有可打击的格子。");
+      if(!cells.has(msg.r+","+msg.c)) return failSide(room, side, "目标超出射程。");
       startMode(cp, "strike", { id:cp.id, cells });
       fn.boardStrike(msg.r, msg.c);
       break;
@@ -279,21 +280,21 @@ function handleIntent(room, side, msg){
     case ACT.BUILD: case ACT.DESTROY: case ACT.DEMOLISH: {
       const cp = base(msg.id); if(!cp) return;
       if(msg.action===ACT.BUILD){
-        if(cp.type!=="inf")  return fail(ws, "只有步兵能修筑工事。");
-        if(!cp.resting)      return fail(ws, "步兵必须休整才能修筑工事。");
+        if(cp.type!=="inf")  return failSide(room, side, "只有步兵能修筑工事。");
+        if(!cp.resting)      return failSide(room, side, "步兵必须休整才能修筑工事。");
         const cells = fn.buildCells(cp);
-        if(!cells.has(msg.r+","+msg.c)) return fail(ws, "只能修筑在相邻可驻扎空格。");
+        if(!cells.has(msg.r+","+msg.c)) return failSide(room, side, "只能修筑在相邻可驻扎空格。");
         startMode(cp, "build", { id:cp.id, cells });
       } else if(msg.action===ACT.DESTROY){
-        if(cp.type!=="inf")  return fail(ws, "只有步兵能摧毁工事。");
-        if(!cp.resting)      return fail(ws, "步兵必须休整才能摧毁工事。");
+        if(cp.type!=="inf")  return failSide(room, side, "只有步兵能摧毁工事。");
+        if(!cp.resting)      return failSide(room, side, "步兵必须休整才能摧毁工事。");
         const cells = fn.fortCells(cp);
-        if(!cells.has(msg.r+","+msg.c)) return fail(ws, "该格没有防御工事。");
+        if(!cells.has(msg.r+","+msg.c)) return failSide(room, side, "该格没有防御工事。");
         startMode(cp, "destroy", { id:cp.id, cells });
       } else {
-        if(cp.type!=="cav")  return fail(ws, "只有骑兵能拆毁工事。");
+        if(cp.type!=="cav")  return failSide(room, side, "只有骑兵能拆毁工事。");
         const cells = fn.fortCells(cp);
-        if(!cells.has(msg.r+","+msg.c)) return fail(ws, "该格没有可拆毁的工事。");
+        if(!cells.has(msg.r+","+msg.c)) return failSide(room, side, "该格没有可拆毁的工事。");
         startMode(cp, "demolish", { id:cp.id, cells });
       }
       fn.boardFortOp(msg.r, msg.c);
@@ -302,10 +303,10 @@ function handleIntent(room, side, msg){
 
     case ACT.BUNKER: {
       const cp = base(msg.id); if(!cp) return;
-      if(cp.type!=="inf")       return fail(ws, "只有步兵能修筑防空地堡。");
-      if(!cp.resting)           return fail(ws, "步兵必须休整才能修筑防空地堡。");
-      if(api.bunker[cp.r][cp.c]>0)   return fail(ws, "本格已有防空地堡。");
-      if(api.bunkerDead[cp.r][cp.c]) return fail(ws, "本格地堡已失效，无法再建。");
+      if(cp.type!=="inf")       return failSide(room, side, "只有步兵能修筑防空地堡。");
+      if(!cp.resting)           return failSide(room, side, "步兵必须休整才能修筑防空地堡。");
+      if(api.bunker[cp.r][cp.c]>0)   return failSide(room, side, "本格已有防空地堡。");
+      if(api.bunkerDead[cp.r][cp.c]) return failSide(room, side, "本格地堡已失效，无法再建。");
       startMode(cp, "bunker", { id:cp.id });
       fn.boardBunker(cp.r, cp.c);
       break;
@@ -313,11 +314,11 @@ function handleIntent(room, side, msg){
 
     case ACT.THROW: {
       const cp = base(msg.id); if(!cp) return;
-      if(!api.UNITS[cp.type].throwable) return fail(ws, "该兵种没有投掷物。");
-      if(msg.kind==="flare" && cp.flare<=0) return fail(ws, "照明弹已用尽（需回大本营补给）。");
-      if(msg.kind==="smoke" && cp.smoke<=0) return fail(ws, "烟雾弹已用尽（需回大本营补给）。");
+      if(!api.UNITS[cp.type].throwable) return failSide(room, side, "该兵种没有投掷物。");
+      if(msg.kind==="flare" && cp.flare<=0) return failSide(room, side, "照明弹已用尽（需回大本营补给）。");
+      if(msg.kind==="smoke" && cp.smoke<=0) return failSide(room, side, "烟雾弹已用尽（需回大本营补给）。");
       const cells = fn.throwCells(cp);
-      if(!cells.has(msg.r+","+msg.c)) return fail(ws, "目标不在视野范围内。");
+      if(!cells.has(msg.r+","+msg.c)) return failSide(room, side, "目标不在视野范围内。");
       startMode(cp, msg.kind, { id:cp.id, cells });
       fn.boardThrow(msg.r, msg.c);
       break;
@@ -325,12 +326,12 @@ function handleIntent(room, side, msg){
 
     case ACT.MISSILE: {
       const cp = base(msg.id); if(!cp) return;
-      if(cp.type!=="bomber")  return fail(ws, "只有轰炸机能发射导弹。");
-      if(cp.missile<=0)       return fail(ws, "导弹已用尽（需回大本营补给）。");
+      if(cp.type!=="bomber")  return failSide(room, side, "只有轰炸机能发射导弹。");
+      if(cp.missile<=0)       return failSide(room, side, "导弹已用尽（需回大本营补给）。");
       const vr = fn.visionRange(cp), cells = new Set();
       for(let r=0;r<api.N;r++)for(let c=0;c<api.N;c++)
         if(fn.manh({r,c},cp)<=vr) cells.add(r+","+c);
-      if(!cells.has(msg.r+","+msg.c)) return fail(ws, "目标超出射程。");
+      if(!cells.has(msg.r+","+msg.c)) return failSide(room, side, "目标超出射程。");
       startMode(cp, "missile", { id:cp.id, cells });
       fn.boardMissile(msg.r, msg.c);
       break;
@@ -342,7 +343,7 @@ function handleIntent(room, side, msg){
     }
 
     default:
-      return fail(ws, "未知指令。");
+      return failSide(room, side, "未知指令。");
   }
   collectReports();
   broadcastState(room);
@@ -353,14 +354,14 @@ function handleIntent(room, side, msg){
 /* ---------------- 部署 ---------------- */
 function handleDeploy(room, side, cfg){
   const { api } = room.eng;
-  if(api.phase !== "deploy") return fail(ws, "部署阶段已结束。");
-  if(room.cfgs[side])        return fail(ws, "你已提交过部署。");
-  if(!validDeployShape(cfg)) return fail(ws, "部署配置格式错误。");
+  if(api.phase !== "deploy") return sendTo(room, side, { type:MSG.S_ERROR, msg:"部署阶段已结束。"});
+  if(room.cfgs[side])        return sendTo(room, side, { type:MSG.S_ERROR, msg:"你已提交过部署。"});
+  if(!validDeployShape(cfg)) return sendTo(room, side, { type:MSG.S_ERROR, msg:"部署配置格式错误。"});
   const spent = api.fn.deploySpent(cfg);
-  if(spent > api.BUDGET)     return fail(ws, "积分超出预算。");
+  if(spent > api.BUDGET)     return sendTo(room, side, { type:MSG.S_ERROR, msg:"积分超出预算。"});
   let ground = 0;
   for(const t of api.DEPLOY_TYPES) if((cfg[t]||0) > 0 && !api.UNITS[t].air) ground += cfg[t];
-  if(!ground)                return fail(ws, "必须至少采购 1 支地面兵团。");
+  if(!ground)                return sendTo(room, side, { type:MSG.S_ERROR, msg:"必须至少采购 1 支地面兵团。"});
   room.cfgs[side] = cfg;
   if(room.cfgs[0] && room.cfgs[1]){
     api.fn.spawnFromConfig(0, room.cfgs[0]);
