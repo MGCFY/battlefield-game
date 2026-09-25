@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="KOsjWt4gKHjGASCNlV2Ti3">
+<head data-page-node-id="9kQqS2z8t7fNK8VnCwuVep">
+<meta charset="UTF-8" data-page-node-id="CBjLam5nUMpRYgrHyeF5F1">
+<meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="A5EJ8wv6FqO4IS4HfeubfL">
+<title>战场沙盘策略游戏 · 联机版</title>
+<style>
+  :root{
+    --cell:30px; --label:20px;
+    --red:#d32f2f; --blue:#1565c0;
+    --plain:#69b96e; --highland:#f4f5f7; --river:#4d9de8; --forbidden:#e65352; --bridge:#ffd54f;
+    --ink:#243447; --sub:#5b6b7c;
+    --card:rgba(255,255,255,.86);
+    --shadow-sm:0 1px 3px rgba(15,23,42,.08);
+    --shadow-md:0 4px 14px rgba(15,23,42,.10), 0 1px 3px rgba(15,23,42,.06);
+    --shadow-lg:0 18px 50px rgba(15,23,42,.22);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;color:var(--ink);
+       background:linear-gradient(160deg,#dfe9f3 0%,#f4f7fb 38%,#eaf1f7 70%,#e3edf5 100%);
+       background-attachment:fixed;min-height:100vh;}
+  header{display:flex;align-items:center;gap:12px;padding:10px 18px;
+         background:rgba(255,255,255,.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+         box-shadow:0 2px 14px rgba(15,23,42,.09);position:sticky;top:0;z-index:10;flex-wrap:wrap;
+         border-bottom:1px solid rgba(15,23,42,.06);}
+  header h1{font-size:17px;margin:0;font-weight:800;letter-spacing:.5px;
+            background:linear-gradient(90deg,#b71c1c,#1565c0);-webkit-background-clip:text;
+            background-clip:text;color:transparent;}
+  .turn-chip{padding:5px 16px;border-radius:18px;color:#fff;font-weight:700;font-size:13px;
+             box-shadow:var(--shadow-sm);letter-spacing:.5px;}
+  .turn-chip.red{background:linear-gradient(135deg,#e53935,#b71c1c);}
+  .turn-chip.blue{background:linear-gradient(135deg,#1e88e5,#0d47a1);}
+  .turn-round{font-size:13px;color:var(--sub);}
+  .day-chip{padding:3px 11px;border-radius:14px;font-size:12.5px;font-weight:700;}
+  .day-chip.day{background:linear-gradient(135deg,#fff8e1,#ffecb3);color:#8d6e00;border:1px solid #ffe082;}
+  .day-chip.night{background:linear-gradient(135deg,#37474f,#1c262b);color:#cfd8dc;border:1px solid #455a64;}
+  header .spacer{flex:1;}
+  .btn{border:1px solid rgba(15,23,42,.14);background:rgba(255,255,255,.9);color:var(--ink);border-radius:9px;
+       padding:7px 14px;font-size:13px;cursor:pointer;transition:all .16s ease;box-shadow:var(--shadow-sm);font-weight:600;}
+  .btn:hover:not(:disabled){background:#fff;border-color:#7fa6c9;transform:translateY(-1px);box-shadow:0 3px 10px rgba(15,23,42,.13);}
+  .btn:active:not(:disabled){transform:translateY(0);}
+  .btn:disabled{opacity:.42;cursor:not-allowed;}
+  .btn.primary{background:linear-gradient(135deg,#2e9e5b,#1b6e40);border-color:transparent;color:#fff;}
+  .btn.primary:hover:not(:disabled){background:linear-gradient(135deg,#35b168,#1f7c48);box-shadow:0 4px 14px rgba(27,110,64,.35);}
+  .btn.warn{background:linear-gradient(135deg,#d84a3a,#a93226);border-color:transparent;color:#fff;}
+  .btn.warn:hover:not(:disabled){box-shadow:0 4px 14px rgba(169,50,38,.35);}
+  .btn.small{padding:4px 10px;font-size:12px;}
+  .toggle{font-size:12.5px;color:var(--sub);display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;}
+
+  main{display:flex;gap:16px;padding:14px;justify-content:center;align-items:flex-start;flex-wrap:wrap;}
+  .board-card{background:var(--card);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+              border:1px solid rgba(255,255,255,.6);border-radius:16px;padding:14px;box-shadow:var(--shadow-md);}
+  #board{display:grid;user-select:none;
+         grid-template-columns:var(--label) repeat(20,var(--cell));
+         grid-template-rows:var(--label) repeat(20,var(--cell));}
+  .lbl{display:flex;align-items:center;justify-content:center;font-size:10px;color:#8a94a3;font-weight:600;}
+  .cell{position:relative;display:flex;align-items:center;justify-content:center;border-radius:4px;
+        background:#4a5563;transition:filter .12s ease;}
+  .cell:hover{filter:brightness(1.08);}
+  .t-plain{background:linear-gradient(145deg,#71c076,#5aa864);}
+  .t-highland{background:linear-gradient(145deg,#ffffff,#e8ebf0);}
+  .t-river{background:linear-gradient(145deg,#5aa8ee,#3f8fd8);}
+  .t-forbidden{background:linear-gradient(145deg,#ee5f5e,#d64342);}
+  .cell.bridge{background:repeating-linear-gradient(45deg,#ffd54f,#ffd54f 5px,#f0b429 5px,#f0b429 10px) !important;}
+  .cell.fog-mem{filter:grayscale(.8) brightness(1.08);opacity:.6;}
+  .cell.fog-unknown{background:#39414d !important;filter:none;opacity:1;}
+  .cell.fog-unknown::before{content:"";position:absolute;inset:3px;border-radius:3px;
+        background:repeating-linear-gradient(45deg,#2f3742,#2f3742 6px,#333c48 6px,#333c48 12px);}
+  .cell::after{content:"";position:absolute;inset:0;border-radius:4px;
+               box-shadow:inset 0 0 0 1px rgba(15,23,42,.13);pointer-events:none;z-index:5;}
+  .fx{position:absolute;inset:0;border-radius:4px;pointer-events:none;z-index:1;}
+  .fx-flare{background:rgba(255,236,120,.55);box-shadow:inset 0 0 8px rgba(255,200,0,.9);}
+  .fx-smoke{background:rgba(96,106,120,.82);}
+  .base-tag{font-size:12px;font-weight:700;color:#37474f;position:relative;z-index:2;}
+  .fort-tag{font-size:13px;font-weight:800;color:#37474f;text-shadow:0 0 2px #fff;position:relative;z-index:2;}
+  .bunk-tag{position:absolute;left:1px;top:1px;width:13px;height:13px;border-radius:3px;background:#00695c;
+            color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:3;}
+  .corps{width:23px;height:23px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+         color:#fff;font-size:11px;font-weight:800;box-shadow:0 2px 5px rgba(15,23,42,.45),inset 0 1px 0 rgba(255,255,255,.35);
+         border:1.5px solid rgba(255,255,255,.92);cursor:pointer;position:relative;z-index:2;
+         transition:transform .12s ease;}
+  .corps:hover{transform:scale(1.12);}
+  .corps.red{background:linear-gradient(145deg,#ef5350,#b71c1c);}
+  .corps.blue{background:linear-gradient(145deg,#42a5f5,#0d47a1);}
+  .corps.acted{opacity:.5;}
+  .corps.air{border-style:dashed;}
+  .corps.red.air{background:linear-gradient(145deg,#8e5b5b,#6d2b2b);}
+  .corps.blue.air{background:linear-gradient(145deg,#4b7fb5,#134b8f);}
+  .enemy-chip{border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;
+              font-weight:800;border:2px solid rgba(255,255,255,.92);box-shadow:0 2px 5px rgba(15,23,42,.45);z-index:2;
+              position:relative;cursor:default;}
+  .enemy-chip.red{background:linear-gradient(145deg,#ef5350,#b71c1c);}
+  .enemy-chip.blue{background:linear-gradient(145deg,#42a5f5,#0d47a1);}
+  .sz-s{width:19px;height:19px;font-size:10px;opacity:.9;}
+  .sz-m{width:24px;height:24px;font-size:11px;}
+  .sz-l{width:29px;height:29px;font-size:12px;}
+  .stack{position:absolute;right:0;bottom:0;font-size:9px;font-weight:700;color:#263238;
+         background:rgba(255,255,255,.92);border-radius:6px;padding:0 3px;line-height:12px;pointer-events:none;z-index:3;}
+  .dot{position:absolute;width:7px;height:7px;border-radius:50%;pointer-events:none;z-index:4;}
+  .dot.rest{left:1px;top:1px;background:#00e676;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
+  .dot.fat{right:1px;top:1px;background:#ff9100;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
+  .dot.dur{right:1px;bottom:1px;width:auto;height:auto;font-size:8px;font-weight:800;color:#fff;
+           background:#37474f;border-radius:4px;padding:0 2px;line-height:10px;}
+  .missile-mark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+                font-size:16px;font-weight:900;color:#ff1744;text-shadow:0 0 4px #fff;z-index:4;
+                animation:blink 1s infinite;}
+  @keyframes blink{50%{opacity:.25}}
+  .cell.hl-move{outline:2px solid #ffea00;outline-offset:-2px;cursor:pointer;filter:brightness(1.14);}
+  .cell.hl-attack{outline:3px solid #ff1744;outline-offset:-2px;cursor:pointer;filter:brightness(1.08);}
+  .cell.hl-ally{outline:3px solid #00e5ff;outline-offset:-2px;cursor:pointer;}
+  .cell.hl-build{outline:3px solid #76ff03;outline-offset:-2px;cursor:pointer;}
+  .cell.hl-fort{outline:3px solid #ff6d00;outline-offset:-2px;cursor:pointer;}
+  .cell.hl-strike{outline:3px solid #d500f9;outline-offset:-2px;cursor:pointer;filter:brightness(1.1);}
+  .cell.hl-throw{outline:3px solid #00bcd4;outline-offset:-2px;cursor:pointer;}
+  .cell.hl-vision{box-shadow:inset 0 0 0 1px rgba(255,255,255,.85);}
+  .cell.god-r{box-shadow:inset 0 0 0 2px rgba(211,47,47,.75);}
+  .cell.god-b{box-shadow:inset 0 0 0 2px rgba(21,101,192,.75);}
+  .cell.god-rb{box-shadow:inset 0 0 0 2px rgba(211,47,47,.75), inset 0 0 0 5px rgba(21,101,192,.55);}
+  .cell.cursor{outline:3px solid #00e5ff;outline-offset:-2px;z-index:5;box-shadow:0 0 8px rgba(0,229,255,.7);}
+  .cell.selected{outline:3px solid #ffc400;outline-offset:-2px;box-shadow:0 0 8px #ffc400;z-index:6;}
+  .legend{display:flex;gap:9px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:#4b5563;align-items:center;max-width:700px;}
+  .chip{display:inline-flex;align-items:center;gap:4px;}
+  .sw{width:14px;height:14px;border-radius:3px;display:inline-block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);}
+
+  .panel{width:412px;display:flex;flex-direction:column;gap:12px;}
+  .card{background:var(--card);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+        border:1px solid rgba(255,255,255,.6);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow-md);}
+  .card h3{margin:0 0 8px;font-size:14px;color:#37474f;font-weight:800;letter-spacing:.4px;
+           border-bottom:1px solid rgba(15,23,42,.08);padding-bottom:6px;display:flex;align-items:center;gap:5px;}
+  .card h3::before{content:"";width:4px;height:13px;border-radius:2px;
+                   background:linear-gradient(180deg,#1e88e5,#b71c1c);}
+  .sel-info{font-size:13px;line-height:1.85;}
+  .badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;color:#fff;margin-left:4px;}
+  .badge.red{background:var(--red);} .badge.blue{background:var(--blue);}
+  .badge.rest{background:#2e7d32;} .badge.fat{background:#ef6c00;} .badge.done{background:#78909c;}
+  .badge.air{background:#00897b;} .badge.dur{background:#37474f;}
+  .cmds{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+  .modebox{font-size:13px;line-height:1.8;}
+  .modebox .targets{display:flex;flex-direction:column;gap:5px;margin-top:6px;}
+  .modebox input[type=number]{width:78px;padding:4px 6px;border:1px solid #cbd2da;border-radius:6px;font-size:13px;}
+  .corps-row{display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:8px;cursor:pointer;
+             font-size:12.5px;border:1px solid transparent;}
+  .corps-row:hover{background:#f2f6fa;}
+  .corps-row.sel{border-color:#ffc400;background:#fff8e1;}
+  .corps-row.dim{opacity:.55;}
+  .corps-row .mini{width:20px;height:20px;border-radius:5px;color:#fff;font-size:11px;font-weight:700;
+                   display:flex;align-items:center;justify-content:center;flex:none;}
+  .mini.red{background:var(--red);} .mini.blue{background:var(--blue);}
+  .mini.air{background:#00897b;}
+  .side-title{font-size:12px;font-weight:700;margin:6px 0 2px;}
+  .side-title.red{color:var(--red);} .side-title.blue{color:var(--blue);}
+  #log{max-height:230px;overflow-y:auto;font-size:12px;line-height:1.65;display:flex;flex-direction:column;gap:3px;}
+  #log .entry{padding:3px 9px;border-left:3px solid #cfd8dc;border-radius:6px;background:rgba(247,249,251,.9);}
+  #log .entry.red{border-color:#e53935;background:rgba(255,235,238,.75);}
+  #log .entry.blue{border-color:#1e88e5;background:rgba(227,242,253,.75);}
+  #log .entry.sys{border-color:#ffb300;background:rgba(255,253,231,.85);}
+  #log .entry.warn{border-color:#d500f9;background:rgba(252,228,236,.8);}
+  .tip-note{font-size:11.5px;color:#90a4ae;margin-top:8px;line-height:1.6;}
+  details.rules{font-size:12.5px;line-height:1.75;color:#455a64;}
+  details.rules summary{cursor:pointer;font-weight:700;color:#37474f;font-size:13px;}
+  details.rules li{margin:3px 0;}
+  .alert{background:#fce4ec;border:1px solid #f8bbd0;color:#ad1457;border-radius:8px;
+         padding:6px 10px;font-size:12.5px;font-weight:700;}
+
+  #modalWrap{position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(4px);
+             -webkit-backdrop-filter:blur(4px);display:flex;align-items:center;
+             justify-content:center;z-index:100;}
+  #modalWrap.hidden{display:none;}
+  #modalCard{background:#fff;border-radius:18px;padding:20px 22px;width:480px;max-width:94vw;
+             max-height:84vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:pop .18s ease;}
+  @keyframes pop{from{transform:scale(.94);opacity:0;}to{transform:scale(1);opacity:1;}}
+  #modalCard h2{margin:0 0 10px;font-size:18px;font-weight:800;}
+  .battle-seg{border:1px solid rgba(15,23,42,.08);border-radius:12px;padding:8px 12px;margin-bottom:9px;
+              background:linear-gradient(180deg,#fafcfe,#f4f7fa);}
+  .battle-seg .vs{font-weight:700;margin-bottom:4px;font-size:13.5px;}
+  .battle-seg .rounds{font-size:12px;color:#546e7a;line-height:1.75;}
+  .battle-seg .result{margin-top:6px;font-weight:800;font-size:13px;color:#243447;}
+  .victory{text-align:center;padding:8px 0;}
+  .victory .big{font-size:28px;font-weight:900;margin:10px 0;}
+  .victory.red .big{color:var(--red);} .victory.blue .big{color:var(--blue);}
+
+  #deployWrap{position:fixed;inset:0;background:rgba(15,23,42,.62);backdrop-filter:blur(6px);
+              -webkit-backdrop-filter:blur(6px);display:flex;align-items:center;
+              justify-content:center;z-index:200;}
+  #deployWrap.hidden{display:none;}
+  #deployCard{background:#fff;border-radius:20px;padding:22px 26px;width:560px;max-width:94vw;
+              max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:pop .2s ease;}
+  #deployCard h2{margin:0 0 6px;font-size:19px;font-weight:800;}
+  .deploy-sub{font-size:12.5px;color:#607d8b;margin-bottom:12px;line-height:1.7;}
+  .drow{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:9px;font-size:13px;transition:background .12s;}
+  .drow:nth-child(odd){background:#f6f9fc;}
+  .drow:hover{background:#eef4fa;}
+  .drow .mini{width:22px;height:22px;border-radius:6px;color:#fff;font-size:11px;font-weight:800;
+              display:flex;align-items:center;justify-content:center;flex:none;box-shadow:var(--shadow-sm);}
+  .drow .dname{width:70px;font-weight:700;}
+  .drow .dcost{width:74px;color:#78909c;font-size:12px;}
+  .drow .dtip{flex:1;color:#90a4ae;font-size:11.5px;}
+  .drow input{width:74px;padding:5px 7px;border:1px solid rgba(15,23,42,.18);border-radius:7px;font-size:13px;
+              text-align:right;transition:border .12s, box-shadow .12s;}
+  .drow input:focus{outline:none;border-color:#42a5f5;box-shadow:0 0 0 3px rgba(66,165,245,.18);}
+  .deploy-foot{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:11px;
+               border-top:1px solid rgba(15,23,42,.08);font-size:14px;}
+  .deploy-foot b{font-size:18px;}
+  .deploy-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;}
+  .handoff{text-align:center;padding:24px 10px;}
+  .handoff .icon{font-size:46px;}
+
+/* ---- 联机大厅 / 顶栏 ---- */
+#lobbyWrap{ position:fixed; inset:0; background:rgba(236,240,241,.97); z-index:300;
+  display:flex; align-items:center; justify-content:center; }
+#lobbyWrap.hidden{ display:none; }
+.lobby-card{ background:#fff; border:1px solid #e0e4e8; border-radius:16px; padding:34px 40px;
+  width:400px; box-shadow:0 8px 30px rgba(30,40,60,.10); text-align:center; }
+.lobby-card h1{ font-size:22px; margin:0 0 4px; color:#263238; }
+.lobby-card .sub{ font-size:13px; color:#78909c; margin-bottom:22px; }
+.lobby-sec{ border:1px dashed #cfd8dc; border-radius:12px; padding:16px; margin-top:14px; }
+.lobby-sec .lab{ font-size:13px; color:#455a64; margin-bottom:10px; }
+.lobby-sec input{ width:150px; font-size:18px; text-align:center; letter-spacing:6px; padding:6px 8px;
+  border:1px solid #b0bec5; border-radius:8px; outline:none; }
+.lobby-sec input:focus{ border-color:#1e88e5; }
+.lobby-tip{ font-size:12px; color:#90a4ae; margin-top:12px; min-height:16px; }
+.lobby-tip.err{ color:#c62828; }
+#roomBar{ display:none; align-items:center; gap:10px; padding:6px 12px; background:#eceff1;
+  border-bottom:1px solid #e0e4e8; font-size:13px; color:#455a64; }
+#roomBar b{ color:#263238; letter-spacing:2px; }
+#roomBar .dot{ width:8px; height:8px; border-radius:50%; background:#b0bec5; display:inline-block; margin-right:4px; }
+#roomBar .dot.on{ background:#43a047; }
+@media (max-width:900px){ #roomBar{ flex-wrap:wrap; } }
+
+</style>
+</head>
+<body data-page-node-id="BNjBJigdaNkVYbbEEgRYav">
+<header data-page-node-id="eDXSTjzm8BDn90kvD8ChmF">
+  <h1 data-page-node-id="4qqXkzE5KfIr15UO2B6bjm">⚔ 战场沙盘 · 视野版</h1>
+  <span id="turnChip" class="turn-chip red" data-page-node-id="TOTQRBMntiEwX1ho4uwRFe">红方行动</span>
+  <span id="turnRound" class="turn-round" data-page-node-id="1EIINa755uorml3an5uhA9">第 1 回合</span>
+  <span id="dayChip" class="day-chip day" data-page-node-id="kWweEyy3g99E1GBAoEGCmQ">☀ 白天</span>
+  <span class="spacer" data-page-node-id="oXFzDHUKiUWrtYzUpCKIan"></span>
+  <label class="toggle" data-page-node-id="z2XGcXDxql6HPft8ZOYO3g"><input type="checkbox" id="memFog" checked data-page-node-id="DbLN7JSoaCRRLOQoMuFziF"> 记忆地形</label>
+  <button class="btn" id="viewBtn" data-action="view-toggle" data-page-node-id="viewBtn01">👁 自动视角</button>
+  <button class="btn" id="endTurnBtn" data-action="end-turn" data-page-node-id="n2HsxnFRY0wp1YDaSgIs9E">结束回合</button>
+  <button class="btn" id="newGameBtn" data-action="new-game" data-page-node-id="hNeyVpEIoyzDrEXYgEWQYg">重新开局</button>
+</header>
+
+<main data-page-node-id="hmURmpx1Z4hfi5I2lJRl2O">
+  <div class="board-card" data-page-node-id="AhADNsnsWyB7GreAJ8g5pU">
+    <div id="board" data-page-node-id="1pRRFKUyRbEWEpUTsSR4N5"></div>
+    <div class="legend" data-page-node-id="oY50GRfg6k5BU4RzeJZBtO">
+      <span class="chip" data-page-node-id="8rRCe7kPOSJ5kEnRCv84Mk"><span class="sw" style="background:var(--plain)" data-page-node-id="s7obVq4g5C93QkAzgiO4mW"></span>平地</span>
+      <span class="chip" data-page-node-id="CM5bAEesBBHQgYRJVLUBWZ"><span class="sw" style="background:var(--highland)" data-page-node-id="l5mo8oI0iljfAVazTQFKCl"></span>高地</span>
+      <span class="chip" data-page-node-id="omO6IX8cubXIJlwcGGGXAd"><span class="sw" style="background:var(--river)" data-page-node-id="eVWj4NSiwZP3FwyDRy8IFw"></span>河流</span>
+      <span class="chip" data-page-node-id="OCI7BjZnkBnH27Zny94WAV"><span class="sw" style="background:var(--forbidden)" data-page-node-id="IGv5qNFa1dOXgu1t0GRZ0y"></span>禁地</span>
+      <span class="chip" data-page-node-id="vfh6funUSdCdncxLdp0gjG"><span class="sw" style="background:var(--bridge)" data-page-node-id="GzOzef9lwTTsZUcPHxKR1C"></span>桥</span>
+      <span class="chip" data-page-node-id="Lgzq5UfFZOKJPsKlCsnRBr"><span class="sw" style="background:#39414d" data-page-node-id="x4JYuKX5fAzNjGG46taMso"></span>未探明</span>
+      <span class="chip" data-page-node-id="WHINcJtI8ABH7jAvW4yuYm"><span class="sw" style="background:rgba(255,236,120,.7)" data-page-node-id="BPfIwyN70Pwp07q57aexWO"></span>照明区</span>
+      <span class="chip" data-page-node-id="eILgxokRDtD2pKzrBNMDCb"><span class="sw" style="background:rgba(96,106,120,.85)" data-page-node-id="tpZDSonHrz2RACTO4lVy4l"></span>烟幕</span>
+      <span class="chip" data-page-node-id="GASq9ruht3bFAINEPmfYwT"><span class="fort-tag" data-page-node-id="nGpuML5e3A3TADNBIAJmea">#</span>防御工事</span>
+      <span class="chip" data-page-node-id="GRXmHumCreY987cMFkNxhk"><span class="bunk-tag" style="position:static" data-page-node-id="RDafdvJCHmRJqD5u2CgMOA">堡</span>防空地堡</span>
+      <span class="chip" data-page-node-id="55QK3xwmMMqr8IAfmtRdOp"><span class="enemy-chip red sz-m" style="position:static" data-page-node-id="eXX4Sgsz7khDVw0lPnQYYX">中</span>敌方兵团(仅见大小)</span>
+      <span class="chip" data-page-node-id="1B0SrbAhaLTlpIxUztI7Hi"><span class="dot rest" style="position:static" data-page-node-id="njgHlmiUcFkFPdZKui83FC"></span>休整中</span>
+      <span class="chip" data-page-node-id="oDUqk5QIcy45dtCCL7wweq"><span class="dot fat" style="position:static" data-page-node-id="Gbq2tvxVVsu1VZ4mn5LdR7"></span>疲劳</span>
+      <span class="chip" style="border:none;background:transparent">👁 上帝视角：<span style="color:#d32f2f;font-weight:bold">红框</span>=红方视野，<span style="color:#1565c0;font-weight:bold">蓝框</span>=蓝方视野</span>
+    </div>
+  </div>
+
+  <aside class="panel" data-page-node-id="J19oiyQuz7HwGpi5CNdyJI">
+    <div class="card" id="threatCard" style="display:none" data-page-node-id="hG3YiMMisayx8L624GQS94">
+      <div class="alert" id="threatText" data-page-node-id="VgAMaJlLSW8wvG2YC0oXwc"></div>
+    </div>
+    <div class="card" id="selCard" data-page-node-id="oeDXBa9IrPVChN7MoDaALo">
+      <h3 data-page-node-id="XAWbBwTmI71qUAr5O4E47X">军团指挥</h3>
+      <div id="selInfo" class="sel-info" data-page-node-id="BzrFbC5ThoUWCg8FYjvCCx">点击棋盘上的己方军团进行指挥。</div>
+      <div id="cmdArea" class="cmds" data-page-node-id="TQGWXFNsToFhtdmEKOHxfe"></div>
+    </div>
+    <div class="card" id="modeCard" style="display:none" data-page-node-id="L9H1flTqAdGCTKyC3nG3E1">
+      <h3 data-page-node-id="v1V6u2mo3Nd9RP9laGYamY">操作进行中</h3>
+      <div id="modeBox" class="modebox" data-page-node-id="4Ew3GSJ8Xxs4bLaTW6oq2R"></div>
+    </div>
+    <div class="card" data-page-node-id="EP5RRtkJopAZkT5Gc7FDqY">
+      <h3 data-page-node-id="XssQVRZwYDvdgkMM6NNPrk">己方军团</h3>
+      <div id="corpsList" data-page-node-id="zQrguAPv8ALBpZUSDoaj6z"></div>
+    </div>
+    <div class="card" id="enemyCard" style="display:none" data-page-node-id="EaCuGJLGICErpUWZ78w2jG">
+      <h3 data-page-node-id="pHLrl8hiXBLvf5pQ5OaYTI">已发现的敌方兵团</h3>
+      <div id="enemyList" data-page-node-id="ZXH81dQEe29ProJKUbrv0u"></div>
+    </div>
+    <div class="card" data-page-node-id="kwjYY1gVLnPGkO21Z9bsNt">
+      <h3 data-page-node-id="TTwfOyzs6aITthA57TChaM">战报日志</h3>
+      <div id="log" data-page-node-id="KnWUVLKjrzjFBFgNs7lH0K"></div>
+    </div>
+    <div class="card" data-page-node-id="cBuAZvPX8q5A14peOnTj7j">
+      <details class="rules" data-page-node-id="Egc1KnOurBLMsHlWSukT3L">
+        <summary data-page-node-id="YPDjEh8sFmNe9HJ39QzzlY">规则说明（点击展开）</summary>
+        <ul data-page-node-id="CfapSwmJBH8yLIzjodW7O1">
+          <li data-page-node-id="vIu87vFPdf5FBqUfXGbvBA"><b data-page-node-id="WD3CJLlANzfuiVoez94Cir">获胜</b>：地面兵团占领对方大本营（第3行第3列 / 第17行第17列）；或对方再无任何地面兵团。</li>
+          <li data-page-node-id="EusAgLvO3ZqnsSDHVKOl0e"><b data-page-node-id="owARBmsklh0hK03CFVCyeJ">地形</b>：禁地:高地:平地 = 1:2:7；一条河流贯穿全场、河上3座桥；禁地与无桥河面不可进入；<b data-page-node-id="Kvav8bbHwAAdAYgGCEpcnB">空中单位可飞越一切地形</b>。</li>
+          <li data-page-node-id="XJRCghJu4W3NR1Nc21HEB6"><b data-page-node-id="CF3M6A4zD3i9tK13xc8aD0">积分</b>：开局各 1000 分自由购兵 —— 步兵1/名、骑兵4/名、轻炮兵5/名、侦察兵5/名、重炮兵10/名、坦克50/辆、喀秋莎50/辆、侦查机100/架、轰炸机200/架。</li>
+          <li data-page-node-id="Qrtop05sAhYGKQPyjmIbH0"><b data-page-node-id="EOZjUHuj801lDUxhMQlugQ">昼夜</b>：每 10 回合昼夜转换，20 回合为一天。白天视野：步2 骑3 轻炮3 重炮3 侦察6 坦克4 喀秋莎4 飞机3；夜晚除侦察兵 -2 外全部 -1。</li>
+          <li data-page-node-id="eSSvCbr0tTnZfzKJDno1D2"><b data-page-node-id="4ELc6TA7m3rHkL6e7vcH1w">视野</b>：视野之外的<b data-page-node-id="TTAT7b5YO4YJNI6TOtmzRk">地形、敌方兵团、防御工事、防空地堡</b>均不可见；<b data-page-node-id="xZkOeKequonTM3EXG8qpAW">视野内</b>的敌方兵团可看出是否处于休整。敌方空中单位永不可见，仅当距我方兵团 ≤3 格时发出警报。</li>
+          <li data-page-node-id="v0Hl2CQJn6olEwNpZPnanZ"><b data-page-node-id="zSGVf3hn9JQlHBRytgpwa7">情报</b>：视野内敌方地面兵团只显示规模 —— 侦察兵永远算小；单格积分和 &lt;50 为<b data-page-node-id="x3vfuG0Yk73zOztY8fUUl4">小</b>，50~199 为<b data-page-node-id="RAr1WuWXnXdb50ckHV9TqG">中</b>，≥200 为<b data-page-node-id="NNE1C9VG4bg28r1fkE98Nq">大</b>。</li>
+          <li><b>情报隔离</b>：战报日志仅显示<b>己方行动与公开情报</b>（昼夜、胜负），对方行动一律不可见；远程打击战果只显示<b>消灭人数、载具耐久损耗与敌方规模变化</b>，兵种与剩余兵力不可侦察；大本营雷达预警仅防守方可见。</li>
+          <li><b>桥梁</b>：3 座桥均位于河流直行段（不在拐弯角），且两岸均为可通行陆地，保证每座桥都能过河。</li>
+          <li data-page-node-id="4UNYDAeTlvGO53aywSx9CC"><b data-page-node-id="aHY2DLvj9uYbaMjeniK2lb">大本营雷达</b>：我方大本营 5 格范围内被敌方炮兵/载具打击时，可感知来袭火力距被打击地的格数。</li>
+          <li data-page-node-id="MBfrCI7eM8pV2ZzGHbVQ6t"><b data-page-node-id="AVZbQSJb6vPIIsn4DVKXOG">移动</b>：步兵1格、炮兵1格、侦察兵1~2格（可3格但下回合不能动）、骑兵最多3格、载具（地面/空中）最多2格。</li>
+          <li data-page-node-id="uE7PJgWT3vZwP3DpkBtLux"><b data-page-node-id="jYkdKngibBDHtJ6UpIfRS3">近战</b>：移入敌军格即交战直至一方全歼。步:骑损耗=1:3；骑:坦克/喀秋莎=1:10；步:坦克/喀秋莎=1:20；同兵种1:1。<b data-page-node-id="mtyJFpXZpMWNrTTXyhFX0f">侦察兵无法进攻</b>；炮兵/侦察兵遭遇步骑即被全歼。休整、高地、工事（被进攻方）均减损一半；坦克/喀秋莎近战损耗再乘 耐久/3。</li>
+          <li data-page-node-id="vohVJzvb8GZ3U4MyQIcE5s"><b data-page-node-id="zUWciJUKWuOgsHoXqBRcy4">打击</b>：轻炮 未休整4格/休整5格，1门=3人（休整5人）；重炮 仅休整可打、8格、1门=8人；坦克 未休整3格/休整4格，每辆=20人；喀秋莎 4格内选中心、3×3面杀伤，中心50%威力、其余50%在周围8格随机结算，1辆=30人。高地均 +1 格。打击会被目标休整、高地、防空地堡各减半，并摧毁该格防御工事。</li>
+          <li data-page-node-id="RxdE9LG6AhJqKkmvKEuseZ"><b data-page-node-id="2xlpcND7mvhnVlZ8SY7bBz">坦克/喀秋莎耐久</b>：共3点，被炮兵或地面载具打击掉1点，0点即毁灭；剩 n 点时近战损耗乘 n/3。</li>
+          <li data-page-node-id="kHyFtyOhSsyKbocB9MRVIJ"><b data-page-node-id="tRCINj3ztrC4smuS9b3pu6">工事</b>：休整步兵可花一回合在相邻格修筑/摧毁防御工事，或在<b data-page-node-id="fXFstGLzRQHHNDUaudazOW">自己格</b>修筑防空地堡；骑兵可拆毁工事；炮兵与载具打击会摧毁工事。防空地堡使格上单位受炮兵/载具打击损耗减半，被打3次后永久失效且该格不可再建。</li>
+          <li data-page-node-id="7HKRgySiqrrul8mB2ICVAA"><b data-page-node-id="9qPtA1NhcmLUghAhw9LWsE">照明弹/烟雾弹</b>：侦察兵与空中载具各带1发，花一回合投向视野内任意格，形成 3×3 区域持续5回合。照明区内兵团全图可见；烟幕内非空中单位视野降为1格，且仅烟幕内单位可互相看见。空中载具飞回大本营可补充照明弹与烟雾弹。</li>
+          <li data-page-node-id="7TaoAvCekzgsyhXmtaEPL4"><b data-page-node-id="2Pa4nrLQVNKHnX1wJCPwyF">轰炸机导弹</b>：一次只存1发，花一回合向视野内格子发射，<b data-page-node-id="cOJSUEWHde2ITozvBCyvAn">下一回合</b>命中；该格若无防空地堡则所有单位全歼，有地堡则损耗减半。飞回大本营可补充1发导弹。</li>
+          <li data-page-node-id="Ea6OLK5R8kRZnQOzASUCbd"><b data-page-node-id="Sp8nJXgSSbzwsjytkS9vJB">指令</b>：每个军团每回合执行一项指令（移动/分兵/合兵/休整/打击/修筑工事/投掷/发射导弹/装填弹药）。</li>
+          <li data-page-node-id="83nYPuaJCpHfGbn2nG5plA"><b data-page-node-id="i951r1DwnmIdPCqUM74Zpa">操作</b>：先点选军团，再点指令按钮，然后点击棋盘高亮格；Esc 或"取消"放弃当前操作（不消耗行动）。</li>
+        </ul>
+      </details>
+    </div>
+  </aside>
+</main>
+
+<div id="modalWrap" class="hidden" data-page-node-id="wyul1jxqj95BTTyu9HiGAV"><div id="modalCard" data-page-node-id="Xuh0TH5zbD5MTNKH4HyRAB"></div></div>
+<div id="deployWrap" class="hidden" data-page-node-id="V3P1j35HiUv8yUM9ZTKZnd"><div id="deployCard" data-page-node-id="oapOdFnwDOts5y7FVfXdmd"></div></div>
+
+
+<script src="/protocol.js"></script>
+<script src="/engine.js"></script>
+<script src="/net.js"></script>
+<script src="/online-main.js"></script>
+</body>
+</html>
