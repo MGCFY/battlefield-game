@@ -1,3 +1,4 @@
 *.exe
 .chk.js
 .tmp*
+.api-push-state
