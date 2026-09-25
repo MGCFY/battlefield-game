@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="HYtbsAOWxsyEwXSuMAG7Zw">
+<head data-page-node-id="IRNiRhtZ33QVUvAgxLPSge">
+<meta charset="UTF-8" data-page-node-id="ou37Lw8TGZZadRlVrhLd8d">
+<meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="eBQY0ItwpIFfTsrEy7mz4m">
+<title>战场沙盘策略游戏</title>
+<style>
+  :root{
+    --cell:28px; --label:20px;
+    --red:#c62828; --blue:#1565c0;
+    --plain:#69b96e; --highland:#f4f5f7; --river:#4d9de8; --forbidden:#e65352; --bridge:#ffd54f;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;background:#eef1f5;color:#1f2937;}
+  header{display:flex;align-items:center;gap:14px;padding:10px 18px;background:#fff;
+         box-shadow:0 1px 4px rgba(0,0,0,.08);position:sticky;top:0;z-index:10;flex-wrap:wrap;}
+  header h1{font-size:18px;margin:0;}
+  .turn-chip{padding:4px 16px;border-radius:16px;color:#fff;font-weight:700;font-size:14px;}
+  .turn-chip.red{background:var(--red);} .turn-chip.blue{background:var(--blue);}
+  .turn-round{font-size:13px;color:#555;}
+  header .spacer{flex:1;}
+  .btn{border:1px solid #cbd2da;background:#fff;color:#333;border-radius:8px;padding:6px 14px;
+       font-size:13px;cursor:pointer;transition:.15s;}
+  .btn:hover:not(:disabled){background:#f0f4f8;border-color:#9fb0c0;}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn.primary{background:#1f6f43;border-color:#1f6f43;color:#fff;}
+  .btn.primary:hover:not(:disabled){background:#26854f;}
+  .btn.warn{background:#b03a2e;border-color:#b03a2e;color:#fff;}
+  .btn.small{padding:4px 10px;font-size:12px;}
+
+  main{display:flex;gap:16px;padding:14px;justify-content:center;align-items:flex-start;flex-wrap:wrap;}
+  .board-card{background:#fff;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.07);}
+  #board{display:grid;user-select:none;
+         grid-template-columns:var(--label) repeat(20,var(--cell));
+         grid-template-rows:var(--label) repeat(20,var(--cell));}
+  .lbl{display:flex;align-items:center;justify-content:center;font-size:10px;color:#8a94a3;}
+  .cell{position:relative;display:flex;align-items:center;justify-content:center;border-radius:4px;}
+  .t-plain{background:var(--plain);} .t-highland{background:var(--highland);}
+  .t-river{background:var(--river);} .t-forbidden{background:var(--forbidden);}
+  .cell.bridge{background:var(--bridge) !important;}
+  .cell::after{content:"";position:absolute;inset:0;border-radius:4px;
+               box-shadow:inset 0 0 0 1px rgba(0,0,0,.14);pointer-events:none;}
+  .base-tag{font-size:12px;font-weight:700;color:#37474f;}
+  .fort-tag{font-size:12px;font-weight:800;color:#37474f;text-shadow:0 0 2px #fff;}
+  .corps{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+         color:#fff;font-size:13px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.4);
+         border:1.5px solid #fff;cursor:pointer;}
+  .corps.red{background:var(--red);} .corps.blue{background:var(--blue);}
+  .corps.acted{opacity:.5;}
+  .stack{position:absolute;right:1px;bottom:0;font-size:9px;font-weight:700;color:#263238;
+         background:rgba(255,255,255,.9);border-radius:6px;padding:0 3px;line-height:12px;pointer-events:none;}
+  .dot{position:absolute;width:7px;height:7px;border-radius:50%;pointer-events:none;}
+  .dot.rest{left:1px;top:1px;background:#00e676;box-shadow:0 0 0 1px rgba(0,0,0,.3);}
+  .dot.fat{right:1px;top:1px;background:#ff9100;box-shadow:0 0 0 1px rgba(0,0,0,.3);}
+  .cell.hl-move{outline:2px solid #ffea00;outline-offset:-2px;cursor:pointer;filter:brightness(1.12);}
+  .cell.hl-attack{outline:3px solid #ff1744;outline-offset:-2px;cursor:pointer;filter:brightness(1.08);}
+  .cell.hl-ally{outline:3px solid #00e5ff;outline-offset:-2px;cursor:pointer;}
+  .cell.hl-build{outline:3px solid #76ff03;outline-offset:-2px;cursor:pointer;}
+  .cell.hl-fort{outline:3px solid #ff6d00;outline-offset:-2px;cursor:pointer;}
+  .cell.selected{outline:3px solid #ffc400;outline-offset:-2px;box-shadow:0 0 8px #ffc400;z-index:2;}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:#4b5563;align-items:center;}
+  .chip{display:inline-flex;align-items:center;gap:4px;}
+  .sw{width:14px;height:14px;border-radius:3px;display:inline-block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);}
+
+  .panel{width:400px;display:flex;flex-direction:column;gap:12px;}
+  .card{background:#fff;border-radius:12px;padding:12px 14px;box-shadow:0 2px 8px rgba(0,0,0,.07);}
+  .card h3{margin:0 0 8px;font-size:14px;color:#37474f;border-bottom:1px solid #eceff1;padding-bottom:6px;}
+  .sel-info{font-size:13px;line-height:1.9;}
+  .sel-info .badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;color:#fff;margin-left:4px;}
+  .badge.red{background:var(--red);} .badge.blue{var(--blue);background:var(--blue);}
+  .badge.rest{background:#2e7d32;} .badge.fat{background:#ef6c00;} .badge.done{background:#78909c;}
+  .cmds{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .modebox{font-size:13px;line-height:1.8;}
+  .modebox .hint{color:#b03a2e;font-size:12px;}
+  .modebox .targets{display:flex;flex-direction:column;gap:6px;margin-top:6px;}
+  .modebox .targets .btn{text-align:left;}
+  .modebox input[type=number]{width:80px;padding:4px 6px;border:1px solid #cbd2da;border-radius:6px;font-size:13px;}
+  .corps-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;cursor:pointer;
+             font-size:12.5px;border:1px solid transparent;}
+  .corps-row:hover{background:#f2f6fa;}
+  .corps-row.sel{border-color:#ffc400;background:#fff8e1;}
+  .corps-row.dim{opacity:.55;}
+  .corps-row .mini{width:20px;height:20px;border-radius:5px;color:#fff;font-size:12px;font-weight:700;
+                   display:flex;align-items:center;justify-content:center;flex:none;}
+  .mini.red{background:var(--red);} .mini.blue{background:var(--blue);}
+  .side-title{font-size:12px;font-weight:700;margin:6px 0 2px;}
+  .side-title.red{color:var(--red);} .side-title.blue{color:var(--blue);}
+  #log{max-height:240px;overflow-y:auto;font-size:12px;line-height:1.7;display:flex;flex-direction:column;gap:2px;}
+  #log .entry{padding:2px 8px;border-left:3px solid #cfd8dc;border-radius:4px;background:#fafbfc;}
+  #log .entry.red{border-color:var(--red);} #log .entry.blue{border-color:var(--blue);}
+  #log .entry.sys{border-color:#ffb300;background:#fffde7;}
+  details.rules{font-size:12.5px;line-height:1.8;color:#455a64;}
+  details.rules summary{cursor:pointer;font-weight:700;color:#37474f;font-size:13px;}
+  details.rules li{margin:2px 0;}
+
+  #modalWrap{position:fixed;inset:0;background:rgba(15,23,42,.5);display:flex;align-items:center;
+             justify-content:center;z-index:100;}
+  #modalWrap.hidden{display:none;}
+  #modalCard{background:#fff;border-radius:14px;padding:20px 22px;width:440px;max-width:92vw;
+             max-height:82vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.3);}
+  #modalCard h2{margin:0 0 10px;font-size:18px;}
+  .battle-seg{border:1px solid #eceff1;border-radius:10px;padding:8px 12px;margin-bottom:10px;background:#fafbfc;}
+  .battle-seg .vs{font-weight:700;margin-bottom:4px;}
+  .battle-seg .rounds{font-size:12px;color:#546e7a;line-height:1.8;}
+  .battle-seg .result{margin-top:6px;font-weight:700;font-size:13px;}
+  .victory{text-align:center;padding:10px 0;}
+  .victory .big{font-size:30px;font-weight:900;margin:10px 0;}
+  .victory.red .big{color:var(--red);} .victory.blue .big{color:var(--blue);}
+</style>
+</head>
+<body data-page-node-id="buCaqsRjSv6ohQcg3Wt8pN">
+<header data-page-node-id="6rDKJlVhpwC6R409YKW000">
+  <h1 data-page-node-id="7ClQP1k23mwSQQSP4iOjuS">⚔ 战场沙盘策略游戏</h1>
+  <span id="turnChip" class="turn-chip red" data-page-node-id="nJ9blhl2lKDFkH5xgUKQv4">红方行动</span>
+  <span id="turnRound" class="turn-round" data-page-node-id="V7hfPhNyCC3K7CEgyGxSW8">第 1 回合</span>
+  <span class="spacer" data-page-node-id="lPliSpYN0IMdBSzwIaXBs7"></span>
+  <button class="btn" id="endTurnBtn" data-action="end-turn" data-page-node-id="2JMVz5sHLMlwojzMjoPwBk">结束回合</button>
+  <button class="btn" id="newGameBtn" data-action="new-game" data-page-node-id="HDeWF4xcifng76qdLHxB3p">重新开局</button>
+</header>
+
+<main data-page-node-id="4XWWP6fjt6A0g5dT7ElufC">
+  <div class="board-card" data-page-node-id="iaEBkEomymrHwFrtqFmfjy">
+    <div id="board" data-page-node-id="aJni50MTSWLUuR7Ut8uNh3"></div>
+    <div class="legend" data-page-node-id="QXMl0wuROPrnB7QiDF4wzu">
+      <span class="chip" data-page-node-id="ZsTQjt2yawn3AgCInr2Nt3"><span class="sw" style="background:var(--plain)" data-page-node-id="8zeGk8eJD60xrCUhWijukq"></span>平地</span>
+      <span class="chip" data-page-node-id="7psH5OkMsmDUjQ9pO8Z7y2"><span class="sw" style="background:var(--highland)" data-page-node-id="9rSTXwmduCeGTBbOzxJbRL"></span>高地(营=大本营)</span>
+      <span class="chip" data-page-node-id="q1qPAV2qK0FxYo3sibntio"><span class="sw" style="background:var(--river)" data-page-node-id="KDkP74Uqydd43Pc1Ik0mZH"></span>河流</span>
+      <span class="chip" data-page-node-id="9lvuDUrOLdJuLnn5vHjFu7"><span class="sw" style="background:var(--forbidden)" data-page-node-id="bJfbUPGqWCWW9HMDI02Djn"></span>禁地</span>
+      <span class="chip" data-page-node-id="ytnM5RBBwyo1n4zn9edG1i"><span class="sw" style="background:var(--bridge)" data-page-node-id="ZErDpSs3OAjquzkUF5yQ7v"></span>桥</span>
+      <span class="chip" data-page-node-id="fvxaHmIrrgqIBi8xDqqsXn"><span class="sw" style="background:linear-gradient(135deg,var(--red) 50%,var(--blue) 50%)" data-page-node-id="UBj9KLCXUKhKGzA1Cqwi9R"></span>兵团 步/骑/炮</span>
+      <span class="chip" data-page-node-id="dOnixpFs5xa9WNWAkv4AyH"><span class="sw" style="background:#fff" data-page-node-id="Fv6f5EsYpA6drXswzdwQfQ"></span># = 防御工事</span>
+      <span class="chip" data-page-node-id="TtaaTpF0gCvDj4dX0Jw0Qz"><span class="dot rest" style="position:static" data-page-node-id="FuHOQPfTJVflPEnhWUAeuO"></span>休整中</span>
+      <span class="chip" data-page-node-id="065qp8iZJzVaV1nCobrkzf"><span class="dot fat" style="position:static" data-page-node-id="NDn7TAhHQ2OkXaxAlkQ1MF"></span>疲劳</span>
+    </div>
+  </div>
+
+  <aside class="panel" data-page-node-id="S78nD2tgCUOmxN0gFhE84n">
+    <div class="card" id="selCard" data-page-node-id="C9Ib0s3saO3B6PFYbf3wc6">
+      <h3 data-page-node-id="B8HKOunmkH8UovjT8LgjRi">军团指挥</h3>
+      <div id="selInfo" class="sel-info" data-page-node-id="y9yOoRiFG8IuPlX8MDgFMI">点击棋盘上或列表中的军团进行指挥。</div>
+      <div id="cmdArea" class="cmds" data-page-node-id="DQ23lp1mqcCwCzLzHdKDBI"></div>
+    </div>
+    <div class="card" id="modeCard" style="display:none" data-page-node-id="1iqhcs2BcPZOkxmEharYvS">
+      <h3 data-page-node-id="thTMkrzD4hmK3DqDSpuPWS">操作进行中</h3>
+      <div id="modeBox" class="modebox" data-page-node-id="zw6v3wnQS3xCrNHMCvBTML"></div>
+    </div>
+    <div class="card" data-page-node-id="4bL6tLCVowzeRIw1yWQi2b">
+      <h3 data-page-node-id="BLT4rR1fPdEviJjvpRz2m9">双方军团</h3>
+      <div id="corpsList" data-page-node-id="0EptygDtbgYjuLl4hJNLCK"></div>
+    </div>
+    <div class="card" data-page-node-id="K7Osmm3lyjZNrRbKuGBRyf">
+      <h3 data-page-node-id="VOO5E9iEr9AbCrQBW8Fqfy">战报日志</h3>
+      <div id="log" data-page-node-id="A2lG7dRzkTtoe5CENbyMoQ"></div>
+    </div>
+    <div class="card" data-page-node-id="U7TL4go027WERss9LAUSlb">
+      <details class="rules" data-page-node-id="ijA6WBplOEu6E9TR0h1bwC">
+        <summary data-page-node-id="Z9uwMlEZ2gZEIbOW9kTGlz">规则说明（点击展开）</summary>
+        <ul data-page-node-id="O4KXPm7EV4F2uYx4AIJU8e">
+          <li data-page-node-id="AEYFVUIGieLUT8z8YFW8Zn"><b data-page-node-id="Xp5G1hwFOGn4E1oGXxbF3N">获胜</b>：占领对方大本营(第3行第3列 / 第17行第17列)，或全歼对方。</li>
+          <li data-page-node-id="ulbByhy51aRwfXahnZ6TgH"><b data-page-node-id="smHrHItEdE51N7cXEcCE5f">地形</b>：禁地:高地:平地 = 1:2:7；一条河流贯穿全场，河上有3座桥；禁地与无桥河面不可进入。</li>
+          <li data-page-node-id="XcFmSFbPYu0CJgCVOESvkG"><b data-page-node-id="PPkd8l2FdoTM8WZQuisGJg">初始</b>：每方 400步兵 + 50骑兵 + 30炮兵，驻于大本营。</li>
+          <li data-page-node-id="oI5jgGEjZbSDDnoX4NeCNf"><b data-page-node-id="irQUVzufV8KzvzoKj9OZI8">指令</b>：每个军团每回合执行一项：移动 / 分兵(新军团≥5) / 合兵(同兵种) / 休整；炮兵可炮击，休整步兵可建造/摧毁工事，骑兵可拆毁工事。</li>
+          <li data-page-node-id="hOHisEdXKbscv0HXzcpZYT"><b data-page-node-id="S9RszJDwyOMDoredNpzxo5">移动</b>：步兵1格、炮兵1格、骑兵1~2格(可奔袭3格但下回合不能移动)；过河必须走桥；不能穿越任何兵团。</li>
+          <li data-page-node-id="2hXaOCXwJ70IzStxHAvZfc"><b data-page-node-id="VR9JJEvDfxcmxJVlWpae3C">近战</b>：移入敌军所在格即交战，逐轮消耗直至一方全歼。步:骑损耗=1:3，同兵种1:1，可能同归于尽。</li>
+          <li data-page-node-id="EPe5Ra5pzNTU53h7TvsROw"><b data-page-node-id="JHxDF6Wy2IMrWGbCiUyM35">减损</b>：休整方减半；高地驻扎减半；工事上的被进攻方减半(炮击同样生效)。</li>
+          <li data-page-node-id="TKLC62Ey3gGtdQ1Xtg3nMQ"><b data-page-node-id="IlnOLqvKDzqQ5pHtKE8OXp">炮兵</b>：近战遭遇步/骑即全歼；炮击伤害=炮兵数量。未休整射程2格任意目标；休整后射程3格仅限未休整目标；高地休整可打3格内任意目标。炮击不解除休整。</li>
+          <li data-page-node-id="oeCinq6lizszRdAohk9KMp"><b data-page-node-id="qBH6ickUMXetGk9OGtDlXY">休整解除</b>：移动且未发生交战时解除；发生交战则保持。</li>
+          <li data-page-node-id="OAIav4uWKLmqpzJrmvj1w2"><b data-page-node-id="G57iyXFjyZjJ8Bqu1tYoRW">操作</b>：先点选军团，再点指令按钮；移动/工事类操作直接点击棋盘上高亮的格子；按 Esc 或“取消”可放弃当前操作(不消耗行动)。</li>
+        </ul>
+      </details>
+    </div>
+  </aside>
+</main>
+
+<div id="modalWrap" class="hidden" data-page-node-id="IW4g0o7G81BJmh5mjlau2e"><div id="modalCard" data-page-node-id="QTSPI0J2Oj72iIBZpj9jYF"></div></div>
+
+<script>
+"use strict";
+/* ============================================================
+   战场沙盘策略游戏 · 网页版
+   与 C++ 版同一套规则：20x20 棋盘、1:2:7 地形、单河三桥、
+   分兵/合兵/休整/移动/炮击/工事，损耗 1:3 等。
+   ============================================================ */
+
+const N = 20;
+const BASES = [[2,2],[16,16]];               // 0起始: 第3行第3列 / 第17行第17列
+const SIDE_NAME = ["红方","蓝方"];
+const TYPES = {
+  inf:{ ch:"步", name:"步兵", move:1 },
+  cav:{ ch:"骑", name:"骑兵", move:2 },
+  art:{ ch:"炮", name:"炮兵", move:1 },
+};
+const T_NAME = { plain:"平地", highland:"高地", river:"河流", forbidden:"禁地" };
+const DIRS4 = [[1,0],[-1,0],[0,1],[0,-1]];
+
+/* ---------------- 状态 ---------------- */
+let terrain, bridge, fort;                    // 20x20
+let corps = [];                               // 兵团数组
+let nextId = 1;
+let current = 0;                              // 0红 1蓝
+let turnNo = 1;
+let acted = new Set();                        // 本轮已行动的军团id
+let selId = null;                             // 当前选中军团
+let mode = "idle";                            // idle / move-choose / move / split-amount / split-place / build / destroy / demolish
+let modeData = {};
+let gameOver = false, winner = 0, victoryShown = false;
+
+/* ---------------- 工具 ---------------- */
+const randInt = (a,b)=> a + Math.floor(Math.random()*(b-a+1));
+const cheb = (a,b)=> Math.max(Math.abs(a.r-b.r), Math.abs(a.c-b.c));
+const key = (r,c)=> r+","+c;
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+const inMap = (r,c)=> r>=0&&r<N&&c>=0&&c<N;
+function stationable(r,c){
+  if(!inMap(r,c)) return false;
+  if(terrain[r][c]==="forbidden") return false;
+  if(terrain[r][c]==="river" && !bridge[r][c]) return false;
+  return true;
+}
+const isBase = (r,c)=> BASES.some(([br,bc])=>br===r&&bc===c);
+function corpsIndexAt(r,c){ for(let i=0;i<corps.length;i++){ const p=corps[i]; if(p.alive&&p.r===r&&p.c===c) return i; } return -1; }
+function enemyIndexAt(r,c,side){ for(let i=0;i<corps.length;i++){ const p=corps[i]; if(p.alive&&p.side!==side&&p.r===r&&p.c===c) return i; } return -1; }
+function corpsAt(r,c){ const out=[]; for(const p of corps) if(p.alive&&p.r===r&&p.c===c) out.push(p); return out; }
+const getCorps = id => corps.find(p=>p.id===id);
+const typeName = t => TYPES[t].name;
+
+/* ---------------- 地图生成 ---------------- */
+function tryRiver(){
+  const vis=new Set(), path=[]; let c=randInt(3,16), r=0, guard=0;
+  while(true){
+    if(++guard>200000) return null;
+    if(vis.has(key(r,c))) return null;
+    vis.add(key(r,c)); path.push([r,c]);
+    if(r===N-1) return path;
+    // 只允许四方向行走(下/左/右), 保证河流严格连通; 向下权重更高
+    const cand=[];
+    if(r+1<N && !vis.has(key(r+1,c))) { cand.push([r+1,c]); cand.push([r+1,c]); cand.push([r+1,c]); }
+    if(c-1>=0 && !vis.has(key(r,c-1))) cand.push([r,c-1]);
+    if(c+1<N  && !vis.has(key(r,c+1))) cand.push([r,c+1]);
+    if(!cand.length) return null;
+    [r,c]=cand[randInt(0,cand.length-1)];
+  }
+}
+function genMap(){
+  for(let attempt=0; attempt<500; attempt++){
+    const cells=[];
+    for(let i=0;i<40;i++)  cells.push("forbidden");
+    for(let i=0;i<80;i++)  cells.push("highland");
+    for(let i=0;i<280;i++) cells.push("plain");
+    shuffle(cells);
+    terrain = Array.from({length:N},(_,r)=>Array.from({length:N},(_,c)=>cells[r*N+c]));
+    bridge  = Array.from({length:N},()=>Array(N).fill(false));
+    fort    = Array.from({length:N},()=>Array(N).fill(false));
+
+    const river = tryRiver();
+    if(!river) continue;
+    let ok=true;
+    for(const [r,c] of river){
+      for(const [br,bc] of BASES) if(Math.max(Math.abs(r-br),Math.abs(c-bc))<=1){ ok=false; break; }
+      if(!ok) break;
+    }
+    if(!ok || river.length<12) continue;
+
+    for(const [r,c] of river) terrain[r][c]="river";
+    for(const [br,bc] of BASES){
+      terrain[br][bc]="highland";
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+        const r=br+dr,c=bc+dc;
+        if(inMap(r,c)&&terrain[r][c]==="forbidden") terrain[r][c]="plain";
+      }
+    }
+    const L=river.length;
+    let idxs=null;
+    for(let t=0;t<100&&!idxs;t++){
+      const cand=[Math.floor(L/4),Math.floor(L/2),Math.floor(3*L/4)];
+      const jit=cand.map(x=>{
+        let j=x+randInt(0,Math.max(1,Math.floor(L/8)))-Math.max(1,Math.floor(L/16));
+        return Math.max(1,Math.min(L-2,j));
+      }).sort((a,b)=>a-b);
+      if(jit[1]-jit[0]>=3&&jit[2]-jit[1]>=3) idxs=jit;
+    }
+    if(!idxs) continue;
+    for(const i of idxs) bridge[river[i][0]][river[i][1]]=true;
+    return;
+  }
+  alert("地图生成失败，请重试");
+}
+function initCorps(){
+  corps=[]; nextId=1;
+  const types=["inf","cav","art"], troops=[400,50,30];
+  for(let s=0;s<2;s++)
+    for(let k=0;k<3;k++)
+      corps.push({ id:nextId++, side:s, type:types[k], troops:troops[k],
+                   r:BASES[s][0], c:BASES[s][1], resting:false, fatigue:0, alive:true });
+}
+
+/* ---------------- 战斗结算 ---------------- */
+function annihilate(p){ p.troops=0; p.alive=false; }
+function roundLoss(self, other, isDefender){
+  let base = (self.type==="cav" && other.type==="inf") ? 3 : 1;  // 步:骑 = 1:3
+  let m=1;
+  if(self.resting) m*=0.5;                                      // 休整减半
+  if(terrain[self.r][self.c]==="highland") m*=0.5;              // 高地减半
+  if(isDefender && fort[self.r][self.c]) m*=0.5;                // 工事(仅被进攻方)
+  return Math.max(1, Math.ceil(base*m));
+}
+function attrition(atk, def, seg){
+  let guard=0;
+  while(atk.alive && def.alive){
+    if(++guard>100000) break;
+    const la=roundLoss(atk,def,false), ld=roundLoss(def,atk,true);
+    atk.troops-=la; def.troops-=ld;
+    seg.rounds.push({la, ld, atkLeft:Math.max(0,atk.troops), defLeft:Math.max(0,def.troops)});
+    if(atk.troops<=0) annihilate(atk);
+    if(def.troops<=0) annihilate(def);
+  }
+}
+// 攻方已站在目标格，与格内守方逐个交战；返回战报段
+function resolveMelee(atk){
+  const segs=[]; const r=atk.r, c=atk.c;
+  while(atk.alive){
+    const di=enemyIndexAt(r,c,atk.side);
+    if(di<0) break;
+    const def=corps[di];
+    const seg={ atk0:atk.troops, atkType:atk.type, atkId:atk.id,
+                def, def0:def.troops, rounds:[], special:null,
+                defDead:false, atkDead:false };
+    if(atk.type==="art" && def.type!=="art"){
+      annihilate(atk); atk.troops=0; seg.special=`攻方炮兵遭遇${typeName(def.type)}，被全歼！`;
+      seg.atkDead=true; segs.push(seg); break;
+    }
+    if(def.type==="art" && atk.type!=="art"){
+      seg.special=`守方炮兵遭遇${typeName(atk.type)}，被全歼！`;
+      annihilate(def); seg.defDead=true; segs.push(seg); continue;
+    }
+    attrition(atk, def, seg);
+    seg.defDead=!def.alive; seg.atkDead=!atk.alive;
+    segs.push(seg);
+  }
+  return segs;
+}
+// 炮击
+function doArtilleryStrike(cp, target){
+  let dmg=cp.troops;
+  if(fort[target.r][target.c]) dmg=Math.ceil(dmg/2);   // 目标在工事上减半
+  const real=Math.min(dmg,target.troops);
+  target.troops-=dmg;
+  const report={ cp, target, dmg, real, destroyed:false };
+  if(target.troops<=0){ annihilate(target); report.destroyed=true; }
+  return report;
+}
+
+/* ---------------- 胜负 ---------------- */
+function checkWin(){
+  if(gameOver) return;
+  for(const p of corps){
+    if(!p.alive) continue;
+    const [er,ec]=BASES[1-p.side];
+    if(p.r===er&&p.c===ec){ gameOver=true; winner=p.side; return; }
+  }
+  let red=false, blue=false;
+  for(const p of corps) if(p.alive)(p.side===0?red=true:blue=true);
+  if(!red||!blue){ gameOver=true; winner=red?0:1; }
+}
+
+/* ---------------- 移动 ---------------- */
+// BFS：途经格不可有兵团且可驻扎；返回 {dist, prev}
+function bfsFrom(cp){
+  const dist=Array.from({length:N},()=>Array(N).fill(-1));
+  const prev=Array.from({length:N},()=>Array(N).fill(null));
+  const q=[[cp.r,cp.c]]; dist[cp.r][cp.c]=0;
+  while(q.length){
+    const [r,c]=q.shift();
+    for(const [dr,dc] of DIRS4){
+      const nr=r+dr,nc=c+dc;
+      if(!inMap(nr,nc)||dist[nr][nc]!==-1||!stationable(nr,nc)) continue;
+      if(corpsIndexAt(nr,nc)>=0) continue;        // 兵团格一律不可穿越
+      dist[nr][nc]=dist[r][c]+1; prev[nr][nc]=[r,c]; q.push([nr,nc]);
+    }
+  }
+  return {dist, prev};
+}
+function reconstruct(prev, tr, tc, sr, sc){
+  const path=[]; let cur=[tr,tc];
+  while(!(cur[0]===sr&&cur[1]===sc)){ path.push(cur); cur=prev[cur[0]][cur[1]]; if(!cur) return null; }
+  return path.reverse();
+}
+// 计算移动可达目标：空格 + 兵团格(作为最后一步)
+function computeMoveTargets(cp, steps){
+  const {dist, prev}=bfsFrom(cp);
+  const empties=new Map();    // key -> path
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    if(dist[r][c]>=1&&dist[r][c]<=steps&&corpsIndexAt(r,c)<0)
+      empties.set(key(r,c), reconstruct(prev,r,c,cp.r,cp.c));
+  }
+  const corpsCells=new Map(); // key -> {type:'attack'|'ally', ids:[], path}
+  for(const p of corps){
+    if(!p.alive) continue;
+    const k=key(p.r,p.c);
+    if(corpsCells.has(k)) { corpsCells.get(k).ids.push(p.id); continue; }
+    let best=null;
+    for(const [dr,dc] of DIRS4){
+      const nr=p.r+dr,nc=p.c+dc;
+      if(inMap(nr,nc)&&dist[nr][nc]>=0&&dist[nr][nc]+1<=steps){
+        if(!best||dist[nr][nc]+1<best.length){
+          const base=reconstruct(prev,nr,nc,cp.r,cp.c);
+          if(base) best=base.concat([[p.r,p.c]]);
+        }
+      }
+    }
+    if(best) corpsCells.set(k,{ ids:[p.id], path:best,
+      type: p.side===cp.side?"ally":"attack" });
+  }
+  return { empties, corpsCells };
+}
+function executeMove(cp, path){
+  const report={ moved:false, from:[cp.r,cp.c], segs:[], steps:0, fought:false, died:false };
+  for(const [r,c] of path){
+    report.steps++;
+    cp.r=r; cp.c=c;
+    if(enemyIndexAt(r,c,cp.side)>=0){
+      report.fought=true;
+      report.segs=resolveMelee(cp);
+      break;
+    }
+  }
+  report.moved=true;
+  if(!report.fought) cp.resting=false;                 // 移动后未交战 → 休整解除
+  if(cp.alive && cp.type==="cav" && report.steps>=3) cp.fatigue=2;  // 奔袭3格 → 疲劳
+  if(!cp.alive) report.died=true;
+  checkWin();
+  return report;
+}
+
+/* ---------------- 日志 ---------------- */
+const logEl = document.getElementById("log");
+function log(msg, cls="sys"){
+  const div=document.createElement("div");
+  div.className="entry "+cls;
+  div.innerHTML=msg;
+  logEl.appendChild(div);
+  logEl.scrollTop=logEl.scrollHeight;
+}
+const posStr = p => `(${p.r+1},${p.c+1})`;
+const corpsLabel = p => `${SIDE_NAME[p.side]}${typeName(p.type)}#${p.id}`;
+
+/* ---------------- 模式(指令交互) ---------------- */
+function cancelMode(){ mode="idle"; modeData={}; render(); }
+function startMove(cp){
+  if(cp.type==="cav"){
+    if(cp.fatigue>0){ log("⚠ 该骑兵兵团处于疲劳状态，本回合不能移动。"); return; }
+    mode="move-choose"; modeData={ id:cp.id }; render();
+  } else beginMoveMode(cp, TYPES[cp.type].move);
+}
+function beginMoveMode(cp, steps){
+  mode="move"; modeData={ id:cp.id, steps, ...computeMoveTargets(cp, steps) }; render();
+}
+function confirmSteps(n){
+  const cp=getCorps(modeData.id); if(!cp) return cancelMode();
+  beginMoveMode(cp, n);
+}
+function boardMove(r,c){
+  const cp=getCorps(modeData.id); if(!cp) return cancelMode();
+  const k=key(r,c);
+  let path=null, kind=null;
+  if(modeData.empties.has(k)){ path=modeData.empties.get(k); kind="empty"; }
+  else if(modeData.corpsCells.has(k)){ path=modeData.corpsCells.get(k).path; kind="corps"; }
+  if(!path){ return; }
+  const from=[cp.r,cp.c];
+  const rep=executeMove(cp, path);
+  acted.add(cp.id); mode="idle"; modeData={};
+  log(`${SIDE_NAME[cp.side]} ${typeName(cp.type)}#${cp.id} 从${posStr({r:from[0],c:from[1]})}移动到 (${r+1},${c+1})`,
+      cp.side===0?"red":"blue");
+  if(rep.segs.length) showBattleModal(rep.segs);
+  afterCommand();
+}
+function startSplit(cp){
+  if(cp.troops<6){ log("⚠ 兵力不足：新军团需≥5人且原军团至少保留1人。"); return; }
+  mode="split-amount"; modeData={ id:cp.id }; render();
+}
+function confirmSplitAmount(){
+  const cp=getCorps(modeData.id); if(!cp) return cancelMode();
+  const v=parseInt(document.getElementById("splitNum").value,10);
+  if(!(v>=5&&v<=cp.troops-1)){ alert(`请输入 5 ~ ${cp.troops-1} 之间的整数`); return; }
+  const spots=[];
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(!dr&&!dc) continue;
+    const nr=cp.r+dr,nc=cp.c+dc;
+    if(stationable(nr,nc)&&corpsIndexAt(nr,nc)<0) spots.push([nr,nc]);
+  }
+  if(!spots.length){ log("⚠ 周围没有可驻扎的空格，无法分兵。"); return; }
+  mode="split-place"; modeData={ id:cp.id, n:v, spots:new Set(spots.map(([r,c])=>key(r,c))) };
+  render();
+}
+function boardSplitPlace(r,c){
+  const cp=getCorps(modeData.id); if(!cp) return cancelMode();
+  if(!modeData.spots.has(key(r,c))) return;
+  const nc={ id:nextId++, side:cp.side, type:cp.type, troops:modeData.n,
+             r, c, resting:false, fatigue:0, alive:true };
+  corps.push(nc); cp.troops-=modeData.n;
+  log(`${SIDE_NAME[cp.side]} ${typeName(cp.type)}#${cp.id} 分兵 → 新建 ${typeName(nc.type)}#${nc.id}(x${nc.troops}) 于 (${r+1},${c+1})`,
+      cp.side===0?"red":"blue");
+  acted.add(cp.id); mode="idle"; modeData={};
+  afterCommand();
+}
+function mergeCandidates(cp){
+  return corps.filter(o=>o.alive&&o.side===cp.side&&o.type===cp.type&&o.id!==cp.id&&cheb(o,cp)<=1);
+}
+function startMerge(cp){
+  const cands=mergeCandidates(cp);
+  if(!cands.length){ log("⚠ 周围(含同格)没有同兵种的友方军团，无法合兵。"); return; }
+  mode="merge"; modeData={ id:cp.id, cands:cands.map(o=>o.id) }; render();
+}
+function doMerge(idx){
+  const cp=getCorps(modeData.id); if(!cp) return cancelMode();
+  const tgt=getCorps(modeData.cands[idx]); if(!tgt||!tgt.alive) return cancelMode();
+  tgt.troops+=cp.troops;
+  log(`${SIDE_NAME[cp.side]} ${typeName(cp.type)}#${cp.id}(x${cp.troops}) 并入 #${tgt.id}，合并后兵力 ${tgt.troops}`,
+      cp.side===0?"red":"blue");
+  cp.alive=false; cp.troops=0;
+  acted.add(cp.id); selId=tgt.id; mode="idle"; modeData={};
+  afterCommand();
+}
+function doRest(cp){
+  cp.resting=true;
+  log(`${SIDE_NAME[cp.side]} ${typeName(cp.type)}#${cp.id} 进入休整状态(受击损耗减半)`, cp.side===0?"red":"blue");
+  acted.add(cp.id); mode="idle"; modeData={};
+  afterCommand();
+}
+function artTargets(cp){
+  return corps.filter(t=>{
+    if(!t.alive||t.side===cp.side) return false;
+    const d=cheb(t,cp);
+    if(!cp.resting) return d<=2;
+    if(terrain[cp.r][cp.c]==="highland") return d<=3;
+    return d<=3 && !t.resting;
+  });
+}
+function startArtillery(cp){
+  const ts=artTargets(cp);
+  if(!ts.length){ log("⚠ 射程内没有满足条件的攻击目标。"); return; }
+  mode="artillery"; modeData={ id:cp.id, targets:ts.map(t=>t.id) }; render();
+}
+function doArtillery(idx){
+  const cp=getCorps(modeData.id); if(!cp) return cancelMode();
+  const t=getCorps(modeData.targets[idx]); if(!t||!t.alive) return cancelMode();
+  const rep=doArtilleryStrike(cp,t);
+  log(`${SIDE_NAME[cp.side]} 炮兵#${cp.id}(x${cp.troops}) 炮击 ${SIDE_NAME[t.side]}${typeName(t.type)}#${t.id}，造成 ${rep.real} 损失${rep.destroyed?"，目标全歼！":""}`,
+      cp.side===0?"red":"blue");
+  showArtilleryModal(rep);
+  acted.add(cp.id); mode="idle"; modeData={};
+  afterCommand();
+}
+function buildCells(cp){
+  const out=new Set();
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(!dr&&!dc) continue;
+    const nr=cp.r+dr,nc=cp.c+dc;
+    if(stationable(nr,nc)&&!fort[nr][nc]) out.add(key(nr,nc));
+  }
+  return out;
+}
+function fortCells(cp){
+  const out=new Set();
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+    if(!dr&&!dc) continue;
+    const nr=cp.r+dr,nc=cp.c+dc;
+    if(inMap(nr,nc)&&fort[nr][nc]) out.add(key(nr,nc));
+  }
+  return out;
+}
+function startBuild(cp){
+  if(!cp.resting){ log("⚠ 步兵必须处于休整状态才能建造工事。"); return; }
+  const s=buildCells(cp);
+  if(!s.size){ log("⚠ 周围没有可建造工事的格子。"); return; }
+  mode="build"; modeData={ id:cp.id, cells:s }; render();
+}
+function startDestroy(cp){
+  if(!cp.resting){ log("⚠ 步兵必须处于休整状态才能摧毁工事。"); return; }
+  const s=fortCells(cp);
+  if(!s.size){ log("⚠ 周围没有防御工事。"); return; }
+  mode="destroy"; modeData={ id:cp.id, cells:s }; render();
+}
+function startDemolish(cp){
+  const s=fortCells(cp);
+  if(!s.size){ log("⚠ 周围没有可拆毁的防御工事。"); return; }
+  mode="demolish"; modeData={ id:cp.id, cells:s }; render();
+}
+function boardFortOp(r,c){
+  const cp=getCorps(modeData.id); if(!cp) return cancelMode();
+  const k=key(r,c);
+  if(!modeData.cells.has(k)) return;
+  const isBuild = mode==="build";
+  fort[r][c]=isBuild;
+  log(`${SIDE_NAME[cp.side]} ${typeName(cp.type)}#${cp.id} ${isBuild?"在":"摧毁了"} (${r+1},${c+1}) ${isBuild?"建造防御工事":"的防御工事"}`,
+      cp.side===0?"red":"blue");
+  acted.add(cp.id); mode="idle"; modeData={};
+  afterCommand();
+}
+function afterCommand(){
+  render();
+  if(gameOver && !victoryShown) showVictory();
+}
+
+/* ---------------- 回合 ---------------- */
+function endTurn(){
+  if(gameOver) return;
+  cancelMode();
+  for(const p of corps) if(p.alive&&p.side===current&&p.fatigue>0) p.fatigue--;
+  checkWin();
+  if(gameOver){ render(); if(!victoryShown) showVictory(); return; }
+  log(`—— ${SIDE_NAME[current]}回合结束 ——`);
+  current=1-current;
+  if(current===0) turnNo++;
+  acted.clear(); selId=null; mode="idle"; modeData={};
+  log(`轮到 ${SIDE_NAME[current]} 行动 (第 ${turnNo} 回合)`);
+  render();
+}
+function newGame(){
+  genMap(); initCorps();
+  current=0; turnNo=1; acted.clear(); selId=null;
+  mode="idle"; modeData={}; gameOver=false; victoryShown=false;
+  logEl.innerHTML="";
+  log("新对局开始！红方先行。占领对方大本营即获胜。");
+  render();
+}
+
+/* ---------------- 弹窗 ---------------- */
+const modalWrap=document.getElementById("modalWrap");
+const modalCard=document.getElementById("modalCard");
+function closeModal(){ modalWrap.classList.add("hidden"); }
+function segHTML(seg){
+  const a=corpsLabel({side:seg.def.side===0?1:0, type:seg.atkType, id:seg.atkId});
+  let html=`<div class="battle-seg">
+    <div class="vs">⚔ ${a}(${seg.atk0}人)　vs　${corpsLabel(seg.def)}(${seg.def0}人${seg.def.resting?" · 休整":""})</div>`;
+  if(seg.special){ html+=`<div class="rounds">${seg.special}</div>`; }
+  else{
+    html+=`<div class="rounds">`+seg.rounds.map((rd,i)=>
+      `第${i+1}轮：攻损${rd.la}→剩${rd.atkLeft} ｜ 守损${rd.ld}→剩${rd.defLeft}`).join("<br>")+
+      `</div>`;
+  }
+  const parts=[];
+  if(seg.defDead) parts.push(`${corpsLabel(seg.def)} 全歼`);
+  if(seg.atkDead) parts.push(`攻方全歼`);
+  if(!parts.length) parts.push("两败俱伤？"); // 不会出现
+  html+=`<div class="result">结果：${parts.join("；")}${!seg.atkDead&&!seg.defDead?"（异常）":""}</div></div>`;
+  return html;
+}
+function showBattleModal(segs){
+  let html=`<h2>⚔ 交战报告</h2>`;
+  for(const seg of segs) html+=segHTML(seg);
+  const last=segs[segs.length-1];
+  html+=`<div style="text-align:center;margin-top:6px">
+           <button class="btn primary" data-action="close-modal">确定</button>
+         </div>`;
+  modalCard.innerHTML=html; modalWrap.classList.remove("hidden");
+}
+function showArtilleryModal(rep){
+  const {cp,target,dmg,real,destroyed}=rep;
+  modalCard.innerHTML=`<h2>🎯 炮击报告</h2>
+    <div class="battle-seg">
+      <div class="vs">${corpsLabel(cp)}(${cp.troops}门) → ${corpsLabel(target)}(${posStr(target)})</div>
+      <div class="rounds">命中！造成 <b>${real}</b> 人损失${destroyed?"，目标被<b>全歼</b>！":""}</div>
+    </div>
+    <div style="text-align:center"><button class="btn primary" data-action="close-modal">确定</button></div>`;
+  modalWrap.classList.remove("hidden");
+}
+function showVictory(){
+  victoryShown=true;
+  modalCard.innerHTML=`<div class="victory ${winner===0?"red":"blue"}">
+    <div style="font-size:40px">🏆</div>
+    <div class="big">${SIDE_NAME[winner]} 获胜！</div>
+    <div style="color:#607d8b;font-size:13px">共经历 ${turnNo} 个回合</div>
+    <button class="btn primary" style="margin-top:14px" data-action="new-game">再来一局</button>
+  </div>`;
+  modalWrap.classList.remove("hidden");
+}
+modalWrap.addEventListener("click", e=>{
+  if(e.target===modalWrap){ closeModal(); if(gameOver&&!victoryShown) showVictory(); }
+});
+
+/* ---------------- 渲染 ---------------- */
+const boardEl=document.getElementById("board");
+function renderBoard(){
+  let html="";
+  html+=`<div class="lbl"></div>`;
+  for(let c=0;c<N;c++) html+=`<div class="lbl">${c+1}</div>`;
+  for(let r=0;r<N;r++){
+    html+=`<div class="lbl">${r+1}</div>`;
+    for(let c=0;c<N;c++){
+      const k=key(r,c);
+      let cls="cell t-"+terrain[r][c]+(bridge[r][c]?" bridge":"");
+      const stack=corpsAt(r,c);
+      // 高亮
+      if(mode==="move"||mode==="move-choose"){
+        if(modeData.empties&&modeData.empties.has(k)) cls+=" hl-move";
+        else if(modeData.corpsCells&&modeData.corpsCells.has(k))
+          cls+= modeData.corpsCells.get(k).type==="attack"?" hl-attack":" hl-ally";
+      }
+      if((mode==="build"&&modeData.cells&&modeData.cells.has(k))) cls+=" hl-build";
+      if((mode==="destroy"||mode==="demolish")&&modeData.cells&&modeData.cells.has(k)) cls+=" hl-fort";
+      if(mode==="split-place"&&modeData.spots&&modeData.spots.has(k)) cls+=" hl-build";
+      if(selId!=null){
+        const sp=getCorps(selId);
+        if(sp&&sp.alive&&sp.r===r&&sp.c===c) cls+=" selected";
+      }
+      let title=`(${r+1},${c+1}) ${T_NAME[terrain[r][c]]}`;
+      if(bridge[r][c]) title+=" · 桥";
+      if(fort[r][c]) title+=" · 有工事";
+      let inner="";
+      if(fort[r][c]&&!stack.length) inner+=`<span class="fort-tag">#</span>`;
+      if(isBase(r,c)&&!stack.length) inner+=`<span class="base-tag">营</span>`;
+      if(stack.length){
+        // 显示选中的(若在堆叠中)否则第一个
+        let show=stack[0];
+        if(selId!=null){ const sp=getCorps(selId); if(sp&&sp.alive&&sp.r===r&&sp.c===c) show=sp; }
+        const st=[];
+        if(show.resting) st.push("休整中");
+        if(show.fatigue>0) st.push("疲劳(不能移动)");
+        title+=` · ${SIDE_NAME[show.side]} ${typeName(show.type)}#${show.id} x${show.troops}${st.length?" · "+st.join("/"):""}`;
+        if(stack.length>1) title+=` (共${stack.length}个军团)`;
+        inner=`<span class="corps ${show.side===0?"red":"blue"}${acted.has(show.id)?" acted":""}">${TYPES[show.type].ch}</span>`;
+        if(stack.length>1) inner+=`<span class="stack">×${stack.length}</span>`;
+        if(show.resting) inner+=`<span class="dot rest"></span>`;
+        if(show.fatigue>0) inner+=`<span class="dot fat"></span>`;
+      }
+      html+=`<div class="${cls}" data-cell="${r},${c}" title="${title}">${inner}</div>`;
+    }
+  }
+  boardEl.innerHTML=html;
+}
+function renderPanel(){
+  // 顶部
+  const chip=document.getElementById("turnChip");
+  chip.textContent=SIDE_NAME[current]+"行动";
+  chip.className="turn-chip "+(current===0?"red":"blue");
+  document.getElementById("turnRound").textContent=`第 ${turnNo} 回合 · 已行动 ${acted.size}/${corps.filter(p=>p.alive&&p.side===current).length} 个军团`;
+
+  // 选中信息 + 指令
+  const info=document.getElementById("selInfo");
+  const cmdArea=document.getElementById("cmdArea");
+  const cp = selId!=null ? getCorps(selId) : null;
+  if(!cp||!cp.alive){
+    info.textContent="点击棋盘上或列表中的军团进行指挥。";
+    cmdArea.innerHTML="";
+  } else {
+    const own = cp.side===current;
+    const canCmd = own && !acted.has(cp.id) && !gameOver && mode==="idle";
+    const st=[];
+    if(cp.resting) st.push(`<span class="badge rest">休整中</span>`);
+    if(cp.fatigue>0) st.push(`<span class="badge fat">疲劳</span>`);
+    if(acted.has(cp.id)) st.push(`<span class="badge done">已行动</span>`);
+    info.innerHTML=`<b style="color:var(--${cp.side===0?"red":"blue"})">${corpsLabel(cp)}</b>
+      兵力 <b>${cp.troops}</b> @ ${posStr(cp)} ${st.join(" ")}`;
+    if(!canCmd){
+      cmdArea.innerHTML=`<span class="hint" style="color:#90a4ae;font-size:12px">${
+        gameOver?"游戏已结束": !own?"对方军团，仅可查看": acted.has(cp.id)?"该军团本轮已行动。":"请先结束当前操作"}</span>`;
+    } else {
+      const T=TYPES[cp.type];
+      const btn=(label,action,dis,tip)=>`<button class="btn small" data-action="${action}" ${dis?"disabled":""} title="${tip||""}">${label}</button>`;
+      let html="";
+      html+=btn("移动","cmd-move", cp.type==="cav"&&cp.fatigue>0, cp.type==="cav"?"骑兵1~2格，可奔袭3格(下回合不能移动)":"");
+      html+=btn("分兵","cmd-split", cp.troops<6, "新军团不少于5人");
+      html+=btn("合兵","cmd-merge", mergeCandidates(cp).length===0, "与相邻同兵种友军合并");
+      html+=btn("休整","cmd-rest", false, "受击损耗减半");
+      if(cp.type==="art") html+=btn("炮击","cmd-art", false, "未休整射程2 / 休整射程3");
+      if(cp.type==="inf"){
+        html+=btn("建造工事","cmd-build", !cp.resting||buildCells(cp).size===0, "需休整");
+        html+=btn("摧毁工事","cmd-destroy", !cp.resting||fortCells(cp).size===0, "需休整");
+      }
+      if(cp.type==="cav") html+=btn("拆毁工事","cmd-demolish", fortCells(cp).size===0, "拆毁相邻工事");
+      cmdArea.innerHTML=html;
+    }
+  }
+
+  // 模式框
+  const modeCard=document.getElementById("modeCard");
+  const mb=document.getElementById("modeBox");
+  if(mode==="idle"){ modeCard.style.display="none"; }
+  else{
+    modeCard.style.display="block";
+    let html=`<button class="btn small" data-action="cancel-mode" style="float:right">取消 (Esc)</button>`;
+    if(mode==="move-choose") html+=`<div>骑兵奔袭——选择移动步数：</div>
+      <div class="cmds">
+        <button class="btn small" data-action="step-1">1 格</button>
+        <button class="btn small" data-action="step-2">2 格</button>
+        <button class="btn small" data-action="step-3">3 格（下回合不能移动）</button>
+      </div>`;
+    else if(mode==="move") html+=`<div>移动模式：点击棋盘上<b>黄色(空格)</b> / <b style="color:#ff1744">红色(敌军=进攻)</b> / <b style="color:#00bcd4">青色(友军=叠驻)</b> 高亮的格子。步数上限 ${modeData.steps}。</div>`;
+    else if(mode==="split-amount") html+=`<div>分出兵力（5 ~ ${(()=>{const c=getCorps(modeData.id);return c?c.troops-1:0;})()}）：
+      <input type="number" id="splitNum" min="5" value="5">
+      <button class="btn small primary" data-action="split-confirm">确定</button></div>`;
+    else if(mode==="split-place") html+=`<div>请点击棋盘上<b>绿色高亮</b>的相邻空格放置新军团（${modeData.n}人）。</div>`;
+    else if(mode==="merge"){
+      html+=`<div>选择要合并进的目标军团：</div><div class="targets">`+
+        modeData.cands.map((id,i)=>{const o=getCorps(id);
+          return `<button class="btn small" data-action="merge-${i}">#${o.id} ${typeName(o.type)} x${o.troops} @ ${posStr(o)}</button>`;}).join("")+
+        `</div>`;
+    }
+    else if(mode==="artillery"){
+      html+=`<div>选择炮击目标（伤害=炮兵数量）：</div><div class="targets">`+
+        modeData.targets.map((id,i)=>{const t=getCorps(id);
+          return `<button class="btn small" data-action="art-${i}">#${t.id} ${SIDE_NAME[t.side]}${typeName(t.type)} x${t.troops} @ ${posStr(t)}${t.resting?" [休整]":""}</button>`;}).join("")+
+        `</div>`;
+    }
+    else if(mode==="build") html+=`<div>建造工事：点击棋盘上<b>绿色高亮</b>的相邻格子。</div>`;
+    else if(mode==="destroy") html+=`<div>摧毁工事：点击棋盘上<b>橙色高亮</b>的相邻工事格。</div>`;
+    else if(mode==="demolish") html+=`<div>骑兵拆毁工事：点击棋盘上<b>橙色高亮</b>的相邻工事格。</div>`;
+    mb.innerHTML=html;
+  }
+
+  // 军团列表
+  const list=document.getElementById("corpsList");
+  let lhtml="";
+  for(let s=0;s<2;s++){
+    lhtml+=`<div class="side-title ${s===0?"red":"blue"}">${SIDE_NAME[s]}</div>`;
+    for(const p of corps){
+      if(!p.alive||p.side!==s) continue;
+      const badges=[];
+      if(p.resting) badges.push(`<span class="badge rest">休整</span>`);
+      if(p.fatigue>0) badges.push(`<span class="badge fat">疲劳</span>`);
+      if(acted.has(p.id)) badges.push(`<span class="badge done">已行动</span>`);
+      const sel=selId===p.id?" sel":"";
+      const dim=acted.has(p.id)?" dim":"";
+      lhtml+=`<div class="corps-row${sel}${dim}" data-action="select" data-id="${p.id}">
+        <span class="mini ${s===0?"red":"blue"}">${TYPES[p.type].ch}</span>
+        <span>#${p.id} ${typeName(p.type)} <b>x${p.troops}</b> @ ${posStr(p)}</span>
+        <span style="margin-left:auto">${badges.join("")}</span></div>`;
+    }
+    const aliveN=corps.filter(p=>p.alive&&p.side===s).length;
+    if(!aliveN) lhtml+=`<div style="font-size:12px;color:#90a4ae;padding:2px 8px">（全灭）</div>`;
+  }
+  list.innerHTML=lhtml;
+}
+function render(){ renderBoard(); renderPanel(); }
+
+/* ---------------- 事件 ---------------- */
+document.addEventListener("click", e=>{
+  const btn=e.target.closest("[data-action]");
+  if(!btn) return;
+  const act=btn.dataset.action;
+  const cp = selId!=null ? getCorps(selId) : null;
+  if(act==="select"){ const p=getCorps(+btn.dataset.id); if(p&&p.alive){ selId=p.id; if(mode!=="idle") cancelMode(); render(); } return; }
+  if(act==="end-turn") return endTurn();
+  if(act==="new-game") return newGame();
+  if(act==="close-modal"){ closeModal(); if(gameOver&&!victoryShown) showVictory(); return; }
+  if(act==="cancel-mode") return cancelMode();
+  if(gameOver) return;
+  if(mode==="move-choose"){
+    if(act==="step-1") return confirmSteps(1);
+    if(act==="step-2") return confirmSteps(2);
+    if(act==="step-3") return confirmSteps(3);
+    return;
+  }
+  if(act==="cmd-move"&&cp) return startMove(cp);
+  if(act==="cmd-split"&&cp) return startSplit(cp);
+  if(act==="split-confirm") return confirmSplitAmount();
+  if(act==="cmd-merge"&&cp) return startMerge(cp);
+  if(act.startsWith("merge-")) return doMerge(+act.slice(6));
+  if(act==="cmd-rest"&&cp) return doRest(cp);
+  if(act==="cmd-art"&&cp) return startArtillery(cp);
+  if(act.startsWith("art-")) return doArtillery(+act.slice(4));
+  if(act==="cmd-build"&&cp) return startBuild(cp);
+  if(act==="cmd-destroy"&&cp) return startDestroy(cp);
+  if(act==="cmd-demolish"&&cp) return startDemolish(cp);
+});
+boardEl.addEventListener("click", e=>{
+  const cell=e.target.closest("[data-cell]");
+  if(!cell) return;
+  const [r,c]=cell.dataset.cell.split(",").map(Number);
+  if(gameOver) return;
+  if(mode==="move") return boardMove(r,c);
+  if(mode==="split-place") return boardSplitPlace(r,c);
+  if(mode==="build"||mode==="destroy"||mode==="demolish") return boardFortOp(r,c);
+  // idle：选择军团
+  const stack=corpsAt(r,c);
+  if(stack.length){
+    // 若堆叠中含已选军团则保持，否则选第一个可指挥的
+    let pick=stack.find(p=>p.id===selId) || stack.find(p=>p.side===current&&!acted.has(p.id)) || stack[0];
+    selId=pick.id;
+    render();
+  }
+});
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape"&&mode!=="idle") cancelMode();
+  if(e.key==="Enter"&&mode==="split-amount") confirmSplitAmount();
+});
+
+/* ---------------- 启动 ---------------- */
+genMap();
+initCorps();
+log("新对局开始！红方先行。占领对方大本营即获胜。");
+render();
+</script>
+</body>
+</html>
