@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-page-node-id="KOsjWt4gKHjGASCNlV2Ti3">
-<head data-page-node-id="9kQqS2z8t7fNK8VnCwuVep">
-<meta charset="UTF-8" data-page-node-id="CBjLam5nUMpRYgrHyeF5F1">
-<meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="A5EJ8wv6FqO4IS4HfeubfL">
-<title>战场沙盘策略游戏 · 视野与积分解</title>
+<html lang="zh-CN" data-page-node-id="C0Hn1bBrO42W4XaG3qqNzC">
+<head data-page-node-id="WehtEzcqtqnYWvzKqq4pV6">
+<meta charset="UTF-8" data-page-node-id="NhyYMFAlPPoeqx8iQ9iRIo">
+<meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="bDoCYRaAReeY4HQ5GuqaQp">
+<title>战场沙盘策略游戏 v3.8</title>
 <style>
   :root{
     --cell:30px; --label:20px;
@@ -72,9 +72,11 @@
   .fx-flare{background:rgba(255,236,120,.55);box-shadow:inset 0 0 8px rgba(255,200,0,.9);}
   .fx-smoke{background:rgba(96,106,120,.82);}
   .base-tag{font-size:12px;font-weight:700;color:#37474f;position:relative;z-index:2;}
-  .fort-tag{font-size:13px;font-weight:800;color:#37474f;text-shadow:0 0 2px #fff;position:relative;z-index:2;}
   .bunk-tag{position:absolute;left:1px;top:1px;width:13px;height:13px;border-radius:3px;background:#00695c;
             color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:3;}
+  .fort-edge{position:absolute;z-index:6;background:#4e342e;box-shadow:0 0 0 1px rgba(255,255,255,.45);pointer-events:none;}
+  .fe-h{right:-2px;top:22%;width:5px;height:56%;border-radius:2px;}
+  .fe-v{bottom:-2px;left:22%;height:5px;width:56%;border-radius:2px;}
   .corps{width:23px;height:23px;border-radius:7px;display:flex;align-items:center;justify-content:center;
          color:#fff;font-size:11px;font-weight:800;box-shadow:0 2px 5px rgba(15,23,42,.45),inset 0 1px 0 rgba(255,255,255,.35);
          border:1.5px solid rgba(255,255,255,.92);cursor:pointer;position:relative;z-index:2;
@@ -112,6 +114,7 @@
   .cell.hl-fort{outline:3px solid #ff6d00;outline-offset:-2px;cursor:pointer;}
   .cell.hl-strike{outline:3px solid #d500f9;outline-offset:-2px;cursor:pointer;filter:brightness(1.1);}
   .cell.hl-throw{outline:3px solid #00bcd4;outline-offset:-2px;cursor:pointer;}
+  .cell.hl-charge{outline:3px solid #ff5722;outline-offset:-2px;cursor:pointer;filter:brightness(1.1);}
   .cell.hl-vision{box-shadow:inset 0 0 0 1px rgba(255,255,255,.85);}
   .cell.god-r{box-shadow:inset 0 0 0 2px rgba(211,47,47,.75);}
   .cell.god-b{box-shadow:inset 0 0 0 2px rgba(21,101,192,.75);}
@@ -133,7 +136,7 @@
   .badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;color:#fff;margin-left:4px;}
   .badge.red{background:var(--red);} .badge.blue{background:var(--blue);}
   .badge.rest{background:#2e7d32;} .badge.fat{background:#ef6c00;} .badge.done{background:#78909c;}
-  .badge.air{background:#00897b;} .badge.dur{background:#37474f;}
+  .badge.air{background:#00897b;} .badge.dur{background:#37474f;} .badge.lock{background:#6a1b9a;}
   .cmds{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
   .modebox{font-size:13px;line-height:1.8;}
   .modebox .targets{display:flex;flex-direction:column;gap:5px;margin-top:6px;}
@@ -166,8 +169,8 @@
              -webkit-backdrop-filter:blur(4px);display:flex;align-items:center;
              justify-content:center;z-index:100;}
   #modalWrap.hidden{display:none;}
-  #modalCard{background:#fff;border-radius:18px;padding:20px 22px;width:480px;max-width:94vw;
-             max-height:84vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:pop .18s ease;}
+  #modalCard{background:#fff;border-radius:18px;padding:20px 22px;width:540px;max-width:94vw;
+             max-height:88vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:pop .18s ease;}
   @keyframes pop{from{transform:scale(.94);opacity:0;}to{transform:scale(1);opacity:1;}}
   #modalCard h2{margin:0 0 10px;font-size:18px;font-weight:800;}
   .battle-seg{border:1px solid rgba(15,23,42,.08);border-radius:12px;padding:8px 12px;margin-bottom:9px;
@@ -178,12 +181,23 @@
   .victory{text-align:center;padding:8px 0;}
   .victory .big{font-size:28px;font-weight:900;margin:10px 0;}
   .victory.red .big{color:var(--red);} .victory.blue .big{color:var(--blue);}
+  .rp-board{display:grid;grid-template-columns:repeat(20,16px);gap:1px;background:#b0bec5;
+            padding:4px;border-radius:8px;width:max-content;}
+  .rp-cell{width:16px;height:16px;position:relative;border-radius:2px;}
+  .rp-u{position:absolute;inset:1px;border-radius:3px;font-size:8px;color:#fff;display:flex;
+        align-items:center;justify-content:center;font-weight:800;z-index:2;}
+  .rp-fe{position:absolute;background:#4e342e;z-index:1;}
+  .rp-log{max-height:190px;overflow-y:auto;font-size:11.5px;line-height:1.6;margin-top:8px;
+          border-top:1px dashed #cfd8dc;padding-top:6px;}
+  .rp-log .entry{padding:2px 7px;border-left:3px solid #cfd8dc;border-radius:5px;margin-bottom:2px;background:#fafcfe;}
+  .rp-log .entry.red{border-color:#e53935;} .rp-log .entry.blue{border-color:#1e88e5;}
+  .rp-log .entry.sys{border-color:#ffb300;} .rp-log .entry.warn{border-color:#d500f9;}
 
   #deployWrap{position:fixed;inset:0;background:rgba(15,23,42,.62);backdrop-filter:blur(6px);
               -webkit-backdrop-filter:blur(6px);display:flex;align-items:center;
               justify-content:center;z-index:200;}
   #deployWrap.hidden{display:none;}
-  #deployCard{background:#fff;border-radius:20px;padding:22px 26px;width:560px;max-width:94vw;
+  #deployCard{background:#fff;border-radius:20px;padding:22px 26px;width:580px;max-width:94vw;
               max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:pop .2s ease;}
   #deployCard h2{margin:0 0 6px;font-size:19px;font-weight:800;}
   .deploy-sub{font-size:12.5px;color:#607d8b;margin-bottom:12px;line-height:1.7;}
@@ -199,186 +213,199 @@
               text-align:right;transition:border .12s, box-shadow .12s;}
   .drow input:focus{outline:none;border-color:#42a5f5;box-shadow:0 0 0 3px rgba(66,165,245,.18);}
   .deploy-foot{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:11px;
-               border-top:1px solid rgba(15,23,42,.08);font-size:14px;}
+               border-top:1px solid rgba(15,23,42,.08);font-size:14px;flex-wrap:wrap;}
   .deploy-foot b{font-size:18px;}
   .deploy-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;}
   .handoff{text-align:center;padding:24px 10px;}
   .handoff .icon{font-size:46px;}
 </style>
 </head>
-<body data-page-node-id="BNjBJigdaNkVYbbEEgRYav">
-<header data-page-node-id="eDXSTjzm8BDn90kvD8ChmF">
-  <h1 data-page-node-id="4qqXkzE5KfIr15UO2B6bjm">⚔ 战场沙盘 · 视野版</h1>
-  <span id="turnChip" class="turn-chip red" data-page-node-id="TOTQRBMntiEwX1ho4uwRFe">红方行动</span>
-  <span id="turnRound" class="turn-round" data-page-node-id="1EIINa755uorml3an5uhA9">第 1 回合</span>
-  <span id="dayChip" class="day-chip day" data-page-node-id="kWweEyy3g99E1GBAoEGCmQ">☀ 白天</span>
-  <span class="spacer" data-page-node-id="oXFzDHUKiUWrtYzUpCKIan"></span>
-  <label class="toggle" data-page-node-id="z2XGcXDxql6HPft8ZOYO3g"><input type="checkbox" id="memFog" checked data-page-node-id="DbLN7JSoaCRRLOQoMuFziF"> 记忆地形</label>
-  <select id="modeSel" class="mode-sel" data-page-node-id="modeSel01">
-    <option value="-1">🎮 热座双人</option>
-    <option value="0">🤖 单人·红方（AI=蓝）</option>
-    <option value="1">🤖 单人·蓝方（AI=红）</option>
+<body data-page-node-id="yAHYTDLw5FAfAoTFk7Tthc">
+<header data-page-node-id="QjGNJOBrvuoNYVRaQjG4Wj">
+  <h1 data-page-node-id="rdajX9pLkQ8gnB2yG9ObeP">⚔ 战场沙盘 v3.8</h1>
+  <span id="turnChip" class="turn-chip red" data-page-node-id="iQNFbLrXdsqAOiZJCxrqVU">红方行动</span>
+  <span id="turnRound" class="turn-round" data-page-node-id="uREVzWbZWN72rGjwF00nDY">第 1 回合</span>
+  <span id="dayChip" class="day-chip day" data-page-node-id="pG6ydQUbU1fguCZmRXYE06">☀ 白天</span>
+  <span class="spacer" data-page-node-id="DoyfDVgXinVI7mCReaSied"></span>
+  <label class="toggle" data-page-node-id="VLcBjxpUdQGa4m69EdlrIh"><input type="checkbox" id="memFog" checked data-page-node-id="0DhWSNhHR2cQNqiGIakzAH"> 记忆地形</label>
+  <select id="modeSel" class="mode-sel" data-page-node-id="mYUAdT4lHh4O7ZLjcH4vl9">
+    <option value="-1" data-page-node-id="2Y4UfcjOht0JHyhKDuBTeB">🎮 热座双人</option>
+    <option value="0" data-page-node-id="fcbpWZurhBJCybFziv1HJ8">🤖 单人·红方（AI=蓝）</option>
+    <option value="1" data-page-node-id="AeuWZJ1db3I5AD1NLtjOXU">🤖 单人·蓝方（AI=红）</option>
   </select>
-  <select id="aiDiffSel" class="mode-sel" data-page-node-id="aiDiffSel01">
-    <option value="easy">⭐ AI·简单</option>
-    <option value="medium" selected>⭐⭐ AI·中等</option>
-    <option value="hard">⭐⭐⭐ AI·困难</option>
+  <select id="aiDiffSel" class="mode-sel" data-page-node-id="JYejOzcoswxX9ZDiOsWeTu">
+    <option value="easy" data-page-node-id="syhIaEtJiZbyqwgsCel2A4">⭐ AI·简单</option>
+    <option value="medium" selected data-page-node-id="MQewQ180gmdvZHHJLdrhTn">⭐⭐ AI·中等</option>
+    <option value="hard" data-page-node-id="kxU81ekkX4euFjdvnkaG6n">⭐⭐⭐ AI·困难</option>
   </select>
-  <button class="btn" id="aiFastBtn" data-action="ai-fast" disabled data-page-node-id="aiFastBtn01">⏩ 快进 AI</button>
-  <button class="btn" id="viewBtn" data-action="view-toggle" data-page-node-id="viewBtn01">👁 自动视角</button>
-  <button class="btn" id="endTurnBtn" data-action="end-turn" data-page-node-id="n2HsxnFRY0wp1YDaSgIs9E">结束回合</button>
-  <button class="btn" id="newGameBtn" data-action="new-game" data-page-node-id="hNeyVpEIoyzDrEXYgEWQYg">重新开局</button>
+  <button class="btn" id="aiFastBtn" data-action="ai-fast" disabled data-page-node-id="1uFUL9VG3FHtaVC3yLBIeK">⏩ 快进 AI</button>
+  <button class="btn" id="viewBtn" data-action="view-toggle" data-page-node-id="nTmFzb8q2wRvIZNHM30g9u">👁 自动视角</button>
+  <button class="btn" id="replayBtn" data-action="show-replay" disabled data-page-node-id="FrcaBQZrt0wVJzbbY14mdY">📼 复盘</button>
+  <button class="btn" id="endTurnBtn" data-action="end-turn" data-page-node-id="2mFWnZ9PXXzAigfub1gbne">结束回合</button>
+  <button class="btn" id="newGameBtn" data-action="new-game" data-page-node-id="Aq6wkaMfulPEe32kdbSGuC">重新开局</button>
 </header>
 
-<main data-page-node-id="hmURmpx1Z4hfi5I2lJRl2O">
-  <div class="board-card" data-page-node-id="AhADNsnsWyB7GreAJ8g5pU">
-    <div id="board" data-page-node-id="1pRRFKUyRbEWEpUTsSR4N5"></div>
-    <div class="legend" data-page-node-id="oY50GRfg6k5BU4RzeJZBtO">
-      <span class="chip" data-page-node-id="8rRCe7kPOSJ5kEnRCv84Mk"><span class="sw" style="background:var(--plain)" data-page-node-id="s7obVq4g5C93QkAzgiO4mW"></span>平地</span>
-      <span class="chip" data-page-node-id="CM5bAEesBBHQgYRJVLUBWZ"><span class="sw" style="background:var(--highland)" data-page-node-id="l5mo8oI0iljfAVazTQFKCl"></span>高地</span>
-      <span class="chip" data-page-node-id="omO6IX8cubXIJlwcGGGXAd"><span class="sw" style="background:var(--river)" data-page-node-id="eVWj4NSiwZP3FwyDRy8IFw"></span>河流</span>
-      <span class="chip" data-page-node-id="OCI7BjZnkBnH27Zny94WAV"><span class="sw" style="background:var(--forbidden)" data-page-node-id="IGv5qNFa1dOXgu1t0GRZ0y"></span>禁地</span>
-      <span class="chip" data-page-node-id="vfh6funUSdCdncxLdp0gjG"><span class="sw" style="background:var(--bridge)" data-page-node-id="GzOzef9lwTTsZUcPHxKR1C"></span>桥</span>
-      <span class="chip" data-page-node-id="Lgzq5UfFZOKJPsKlCsnRBr"><span class="sw" style="background:#39414d" data-page-node-id="x4JYuKX5fAzNjGG46taMso"></span>未探明</span>
-      <span class="chip" data-page-node-id="WHINcJtI8ABH7jAvW4yuYm"><span class="sw" style="background:rgba(255,236,120,.7)" data-page-node-id="BPfIwyN70Pwp07q57aexWO"></span>照明区</span>
-      <span class="chip" data-page-node-id="eILgxokRDtD2pKzrBNMDCb"><span class="sw" style="background:rgba(96,106,120,.85)" data-page-node-id="tpZDSonHrz2RACTO4lVy4l"></span>烟幕</span>
-      <span class="chip" data-page-node-id="GASq9ruht3bFAINEPmfYwT"><span class="fort-tag" data-page-node-id="nGpuML5e3A3TADNBIAJmea">#</span>防御工事</span>
-      <span class="chip" data-page-node-id="GRXmHumCreY987cMFkNxhk"><span class="bunk-tag" style="position:static" data-page-node-id="RDafdvJCHmRJqD5u2CgMOA">堡</span>防空地堡</span>
-      <span class="chip" data-page-node-id="55QK3xwmMMqr8IAfmtRdOp"><span class="enemy-chip red sz-m" style="position:static" data-page-node-id="eXX4Sgsz7khDVw0lPnQYYX">中</span>敌方兵团(仅见大小)</span>
-      <span class="chip" data-page-node-id="1B0SrbAhaLTlpIxUztI7Hi"><span class="dot rest" style="position:static" data-page-node-id="njgHlmiUcFkFPdZKui83FC"></span>休整中</span>
-      <span class="chip" data-page-node-id="oDUqk5QIcy45dtCCL7wweq"><span class="dot fat" style="position:static" data-page-node-id="Gbq2tvxVVsu1VZ4mn5LdR7"></span>疲劳</span>
-      <span class="chip" style="border:none;background:transparent">👁 上帝视角：<span style="color:#d32f2f;font-weight:bold">红框</span>=红方视野，<span style="color:#1565c0;font-weight:bold">蓝框</span>=蓝方视野</span>
+<main data-page-node-id="DZW80hjlbH4fpOqzNpywAx">
+  <div class="board-card" data-page-node-id="ley2vjTNCQkjAwcsmnjA0Q">
+    <div id="board" data-page-node-id="3xkiWvhcjCVGCpfZ0fLlQH"></div>
+    <div class="legend" data-page-node-id="6GuOBjTgu0KJYIU2i5rGBM">
+      <span class="chip" data-page-node-id="z679O1kGsMHHfWYDbSkQnY"><span class="sw" style="background:var(--plain)" data-page-node-id="2cbg0PnwrbQtaSW3fBJMQp"></span>平地</span>
+      <span class="chip" data-page-node-id="jt1f7qnGb85fd0LWJVj0g6"><span class="sw" style="background:var(--highland)" data-page-node-id="f7kY7lMLk5KpxaI800FhRq"></span>高地</span>
+      <span class="chip" data-page-node-id="KDTlNJCRkFe9RCOJmjlB2C"><span class="sw" style="background:var(--river)" data-page-node-id="hko5qWonq9hMy9MRVWNiWY"></span>河流</span>
+      <span class="chip" data-page-node-id="e8rEx8AX5ifjPAEEDp4TZ1"><span class="sw" style="background:var(--forbidden)" data-page-node-id="7RP0l7wVu7Gq10LNMYsGEz"></span>禁地</span>
+      <span class="chip" data-page-node-id="JBlra2C8lA6U82IGhqtlja"><span class="sw" style="background:var(--bridge)" data-page-node-id="7vlW3GuGtdlgp0IExbaKq8"></span>桥</span>
+      <span class="chip" data-page-node-id="dXkGsJvl5EAvssYmegvXMa"><span class="sw" style="background:#39414d" data-page-node-id="8QwRuwLQwXEBilxXT8wkY3"></span>未探明</span>
+      <span class="chip" data-page-node-id="U4GlOrapv0Il37SNU3GitS"><span class="sw" style="background:rgba(255,236,120,.7)" data-page-node-id="CPgG6lmju6Z4R8b8HEKYTc"></span>照明区</span>
+      <span class="chip" data-page-node-id="W6ihTh2X4OUjNCGwR5fPEy"><span class="sw" style="background:rgba(96,106,120,.85)" data-page-node-id="brKiAeBwyoIb8iDyaqR5Ww"></span>烟幕</span>
+      <span class="chip" data-page-node-id="Tua0MYpsKboHGeHcWO26tO"><span style="display:inline-block;width:12px;height:6px;background:#4e342e;border-radius:2px" data-page-node-id="mh1MrPyW2ZG7z7jbJ5OGdD"></span>防御工事(格间)</span>
+      <span class="chip" data-page-node-id="TFDBDQLh2YrkQudsmUBtBP"><span class="bunk-tag" style="position:static" data-page-node-id="PfhvRbEgfIFWGaNB4PgdR7">堡</span>防空地堡</span>
+      <span class="chip" data-page-node-id="5gRWqp4Kq3mVszqp6cK7Lx"><span class="enemy-chip red sz-m" style="position:static" data-page-node-id="tpMsDKv9Ev5t0rzwGGXEx3">中</span>敌方兵团(仅见大小)</span>
+      <span class="chip" data-page-node-id="EJAhwQKqhNHa42S0DzEOVm"><span class="dot rest" style="position:static" data-page-node-id="DSyiO9MOxIRRvTKCZgfHmL"></span>休整中</span>
+      <span class="chip" data-page-node-id="qXCmy4y8z0WHq9liAqxsDt"><span class="dot fat" style="position:static" data-page-node-id="RcCQTCGqol4k9GSv2TGGdA"></span>需修整</span>
     </div>
   </div>
 
-  <aside class="panel" data-page-node-id="J19oiyQuz7HwGpi5CNdyJI">
-    <div class="card" id="threatCard" style="display:none" data-page-node-id="hG3YiMMisayx8L624GQS94">
-      <div class="alert" id="threatText" data-page-node-id="VgAMaJlLSW8wvG2YC0oXwc"></div>
+  <aside class="panel" data-page-node-id="qVrHQfewhcB2PZWv0k2cA6">
+    <div class="card" id="threatCard" style="display:none" data-page-node-id="OOxUEOKNmBQMTNZzJP71p9">
+      <div class="alert" id="threatText" data-page-node-id="Uvl1kBBZwC1JcYxdzzzftN"></div>
     </div>
-    <div class="card" id="selCard" data-page-node-id="oeDXBa9IrPVChN7MoDaALo">
-      <h3 data-page-node-id="XAWbBwTmI71qUAr5O4E47X">军团指挥</h3>
-      <div id="selInfo" class="sel-info" data-page-node-id="BzrFbC5ThoUWCg8FYjvCCx">点击棋盘上的己方军团进行指挥。</div>
-      <div id="cmdArea" class="cmds" data-page-node-id="TQGWXFNsToFhtdmEKOHxfe"></div>
+    <div class="card" id="selCard" data-page-node-id="7bFFErkiicjOMIi7u7aus1">
+      <h3 data-page-node-id="bDCklqTIFwBrfpc4ylSDYq">军团指挥</h3>
+      <div id="selInfo" class="sel-info" data-page-node-id="uLXh63ATAddQC03u9uTi0T">点击棋盘上的己方军团进行指挥。</div>
+      <div id="cmdArea" class="cmds" data-page-node-id="Z0dr7nexZo1kSDnvVCRkiO"></div>
     </div>
-    <div class="card" id="modeCard" style="display:none" data-page-node-id="L9H1flTqAdGCTKyC3nG3E1">
-      <h3 data-page-node-id="v1V6u2mo3Nd9RP9laGYamY">操作进行中</h3>
-      <div id="modeBox" class="modebox" data-page-node-id="4Ew3GSJ8Xxs4bLaTW6oq2R"></div>
+    <div class="card" id="modeCard" style="display:none" data-page-node-id="8LpJ7lGgX9PRPxDoip8Bza">
+      <h3 data-page-node-id="A4aUlL5YqJEKnzYt5qLHzI">操作进行中</h3>
+      <div id="modeBox" class="modebox" data-page-node-id="WnKtzHnKmy11hGv4Ob8LSI"></div>
     </div>
-    <div class="card" data-page-node-id="EP5RRtkJopAZkT5Gc7FDqY">
-      <h3 data-page-node-id="XssQVRZwYDvdgkMM6NNPrk">己方军团</h3>
-      <div id="corpsList" data-page-node-id="zQrguAPv8ALBpZUSDoaj6z"></div>
+    <div class="card" data-page-node-id="sMCFsffC50BcU5242EqVup">
+      <h3 data-page-node-id="63xBg765KEu47fJd54uNiL">己方军团</h3>
+      <div id="corpsList" data-page-node-id="TynZyqrer3VeZfA7EJjRKd"></div>
     </div>
-    <div class="card" id="enemyCard" style="display:none" data-page-node-id="EaCuGJLGICErpUWZ78w2jG">
-      <h3 data-page-node-id="pHLrl8hiXBLvf5pQ5OaYTI">已发现的敌方兵团</h3>
-      <div id="enemyList" data-page-node-id="ZXH81dQEe29ProJKUbrv0u"></div>
+    <div class="card" id="enemyCard" style="display:none" data-page-node-id="tZpjjXi3KBIRpwppf1nnlI">
+      <h3 data-page-node-id="aUCvQGnmpktOA3iDlDGyFX">已发现的敌方兵团</h3>
+      <div id="enemyList" data-page-node-id="RnmCXDpWx5lqjC7ipcW5wU"></div>
     </div>
-    <div class="card" data-page-node-id="kwjYY1gVLnPGkO21Z9bsNt">
-      <h3 data-page-node-id="TTwfOyzs6aITthA57TChaM">战报日志</h3>
-      <div id="log" data-page-node-id="KnWUVLKjrzjFBFgNs7lH0K"></div>
+    <div class="card" data-page-node-id="aP7IkjfdbDU7YJkSUJGtLe">
+      <h3 data-page-node-id="M8885Edo18msP7nZ4GFBXN">战报日志</h3>
+      <div id="log" data-page-node-id="zq5au9lcvRJ93ZEIbUTQGw"></div>
     </div>
-    <div class="card" data-page-node-id="cBuAZvPX8q5A14peOnTj7j">
-      <details class="rules" data-page-node-id="Egc1KnOurBLMsHlWSukT3L">
-        <summary data-page-node-id="YPDjEh8sFmNe9HJ39QzzlY">规则说明（点击展开）</summary>
-        <ul data-page-node-id="CfapSwmJBH8yLIzjodW7O1">
-          <li data-page-node-id="vIu87vFPdf5FBqUfXGbvBA"><b data-page-node-id="WD3CJLlANzfuiVoez94Cir">获胜</b>：地面兵团占领对方大本营（第3行第3列 / 第17行第17列）；或对方再无任何地面兵团。</li>
-          <li data-page-node-id="EusAgLvO3ZqnsSDHVKOl0e"><b data-page-node-id="owARBmsklh0hK03CFVCyeJ">地形</b>：禁地:高地:平地 = 1:2:7；一条河流贯穿全场、河上3座桥；禁地与无桥河面不可进入；<b data-page-node-id="Kvav8bbHwAAdAYgGCEpcnB">空中单位可飞越一切地形</b>。</li>
-          <li data-page-node-id="XJRCghJu4W3NR1Nc21HEB6"><b data-page-node-id="CF3M6A4zD3i9tK13xc8aD0">积分</b>：开局各 1000 分自由购兵 —— 步兵1/名、骑兵4/名、轻炮兵5/名、侦察兵5/名、重炮兵10/名、坦克50/辆、喀秋莎50/辆、侦查机100/架、轰炸机200/架。</li>
-          <li data-page-node-id="Qrtop05sAhYGKQPyjmIbH0"><b data-page-node-id="EOZjUHuj801lDUxhMQlugQ">昼夜</b>：每 10 回合昼夜转换，20 回合为一天。白天视野：步2 骑3 轻炮3 重炮3 侦察6 坦克4 喀秋莎4 飞机3；夜晚除侦察兵 -2 外全部 -1。</li>
-          <li data-page-node-id="eSSvCbr0tTnZfzKJDno1D2"><b data-page-node-id="4ELc6TA7m3rHkL6e7vcH1w">视野</b>：视野之外的<b data-page-node-id="TTAT7b5YO4YJNI6TOtmzRk">地形、敌方兵团、防御工事、防空地堡</b>均不可见；<b data-page-node-id="xZkOeKequonTM3EXG8qpAW">视野内</b>的敌方兵团可看出是否处于休整。敌方空中单位永不可见，仅当距我方兵团 ≤3 格时发出警报。</li>
-          <li data-page-node-id="v0Hl2CQJn6olEwNpZPnanZ"><b data-page-node-id="zSGVf3hn9JQlHBRytgpwa7">情报</b>：视野内敌方地面兵团只显示规模 —— 侦察兵永远算小；单格积分和 &lt;50 为<b data-page-node-id="x3vfuG0Yk73zOztY8fUUl4">小</b>，50~199 为<b data-page-node-id="RAr1WuWXnXdb50ckHV9TqG">中</b>，≥200 为<b data-page-node-id="NNE1C9VG4bg28r1fkE98Nq">大</b>。</li>
-          <li><b>情报隔离</b>：战报日志仅显示<b>己方行动与公开情报</b>（昼夜、胜负），对方行动一律不可见；远程打击战果只显示<b>消灭人数、载具耐久损耗与敌方规模变化</b>，兵种与剩余兵力不可侦察；大本营雷达预警仅防守方可见。</li>
-          <li><b>桥梁</b>：3 座桥均位于河流直行段（不在拐弯角），且两岸均为可通行陆地，保证每座桥都能过河。</li>
-          <li data-page-node-id="4UNYDAeTlvGO53aywSx9CC"><b data-page-node-id="aHY2DLvj9uYbaMjeniK2lb">大本营雷达</b>：我方大本营 5 格范围内被敌方炮兵/载具打击时，可感知来袭火力距被打击地的格数。</li>
-          <li data-page-node-id="MBfrCI7eM8pV2ZzGHbVQ6t"><b data-page-node-id="AVZbQSJb6vPIIsn4DVKXOG">移动</b>：步兵1格、炮兵1格、侦察兵1~2格（可3格但下回合不能动）、骑兵最多3格、载具（地面/空中）最多2格。</li>
-          <li data-page-node-id="uE7PJgWT3vZwP3DpkBtLux"><b data-page-node-id="jYkdKngibBDHtJ6UpIfRS3">近战</b>：移入敌军格即交战直至一方全歼。步:骑损耗=1:3；骑:坦克/喀秋莎=1:10；步:坦克/喀秋莎=1:20；同兵种1:1。<b data-page-node-id="mtyJFpXZpMWNrTTXyhFX0f">侦察兵无法进攻</b>；炮兵/侦察兵遭遇步骑即被全歼。休整、高地、工事（被进攻方）均减损一半；坦克/喀秋莎近战损耗再乘 耐久/3。</li>
-          <li data-page-node-id="vohVJzvb8GZ3U4MyQIcE5s"><b data-page-node-id="zUWciJUKWuOgsHoXqBRcy4">打击</b>：轻炮 未休整4格/休整5格，1门=3人（休整5人）；重炮 仅休整可打、8格、1门=8人；坦克 未休整3格/休整4格，每辆=20人；喀秋莎 4格内选中心、3×3面杀伤，中心50%威力、其余50%在周围8格随机结算，1辆=30人。高地均 +1 格。打击会被目标休整、高地、防空地堡各减半，并摧毁该格防御工事。</li>
-          <li data-page-node-id="RxdE9LG6AhJqKkmvKEuseZ"><b data-page-node-id="2xlpcND7mvhnVlZ8SY7bBz">坦克/喀秋莎耐久</b>：共3点，被炮兵或地面载具打击掉1点，0点即毁灭；剩 n 点时近战损耗乘 n/3。</li>
-          <li data-page-node-id="kHyFtyOhSsyKbocB9MRVIJ"><b data-page-node-id="tRCINj3ztrC4smuS9b3pu6">工事</b>：休整步兵可花一回合在相邻格修筑/摧毁防御工事，或在<b data-page-node-id="fXFstGLzRQHHNDUaudazOW">自己格</b>修筑防空地堡；骑兵可拆毁工事；炮兵与载具打击会摧毁工事。防空地堡使格上单位受炮兵/载具打击损耗减半，被打3次后永久失效且该格不可再建。</li>
-          <li data-page-node-id="7HKRgySiqrrul8mB2ICVAA"><b data-page-node-id="9qPtA1NhcmLUghAhw9LWsE">照明弹/烟雾弹</b>：侦察兵与空中载具各带1发，花一回合投向视野内任意格，形成 3×3 区域持续5回合。照明区内兵团全图可见；烟幕内非空中单位视野降为1格，且仅烟幕内单位可互相看见。空中载具飞回大本营可补充照明弹与烟雾弹。</li>
-          <li data-page-node-id="7TaoAvCekzgsyhXmtaEPL4"><b data-page-node-id="2Pa4nrLQVNKHnX1wJCPwyF">轰炸机导弹</b>：一次只存1发，花一回合向视野内格子发射，<b data-page-node-id="cOJSUEWHde2ITozvBCyvAn">下一回合</b>命中；该格若无防空地堡则所有单位全歼，有地堡则损耗减半。飞回大本营可补充1发导弹。</li>
-          <li data-page-node-id="Ea6OLK5R8kRZnQOzASUCbd"><b data-page-node-id="Sp8nJXgSSbzwsjytkS9vJB">指令</b>：每个军团每回合执行一项指令（移动/分兵/合兵/休整/打击/修筑工事/投掷/发射导弹/装填弹药）。</li>
-          <li data-page-node-id="83nYPuaJCpHfGbn2nG5plA"><b data-page-node-id="i951r1DwnmIdPCqUM74Zpa">操作</b>：先点选军团，再点指令按钮，然后点击棋盘高亮格；Esc 或"取消"放弃当前操作（不消耗行动）。</li>
+    <div class="card" data-page-node-id="eiAzQd3BsNu5wPHqURSgfQ">
+      <details class="rules" data-page-node-id="cbWGxIAgyxYhTwWp30MOcX">
+        <summary data-page-node-id="2FiC0Wrquf1Zn0BhJsZ5Ws">规则手册（点击展开）</summary>
+        <ul data-page-node-id="D9nFiGahayd8kJNu4SFyrl">
+          <li data-page-node-id="EC2JW4DbUVtvgUv2yyJaym"><b data-page-node-id="JxrxsVGGxvrT7O7S2IX3GV">兵种分类</b>：步兵/骑兵 = 兵单位；轻炮兵/重炮兵 = 炮单位；坦克/喀秋莎 = 重火力单位；侦察机/轰炸机 = 空中单位。侦察兵（小队）归属兵单位但无冲锋战力。</li>
+          <li data-page-node-id="jJWQsfFwoalxiRtOhjJfGG"><b data-page-node-id="O9p4zph4Jaua01aq51FVBJ">兵种数值</b>：
+            步兵 1分 · 视野2 · 走1格，可冲2格（下回合修整）；
+            骑兵 3分 · 视野2 · 走3格，可冲4格（下回合修整）；
+            侦察兵 50分/支 · 视野6 · 走3格 · 带1照明弹1烟雾弹（4格内投掷，占行动）；
+            轻炮兵 5分 · 视野2 · 走1格 · 射程4（修整5）；
+            重炮兵 10分 · 视野2 · 走1格 · 打击前需修整一回合 · 射程9；
+            坦克 25分 · 耐久3 · 视野2 · 走2格 · 射程3（修整4）；
+            喀秋莎 50分 · 耐久1 · 视野2 · 走2格 · 装填后移动不必再装 · 射程3（修整4，指中心落点）；
+            侦察机 100分 · 视野4 · 走3格 · 3照明弹+3烟雾弹（4格内，可一次多投，占行动），回基地补给；
+            轰炸机 200分 · 视野3 · 走2格 · 3枚炸弹（1格内投弹），回基地补给。</li>
+          <li data-page-node-id="WOFErfLBD7aESm5ox2Nov4"><b data-page-node-id="2NRTN6HX45kuM0JLi6IXxU">移动/冲锋</b>：超出正常移速即冲锋，下回合只能修整（例外：贴身肉搏可继续战斗）。跨过防御工事边后，即使还有移动力也只能再前进1格强制停下；冲锋跨工事的一方战力×0.3。骑兵冲锋之后不能分兵；分兵出来的新军团本回合视为已行动。</li>
+          <li data-page-node-id="ntCfV0sMY16ZpPSCbfl8p5"><b data-page-node-id="0v8j7XY1VKBKk3lHdlqKhE">远程伤害</b>：伤害密度 = 密度%×目标兵力 + 保底 + 小额随机；轻炮3%+5，重炮5%+5，坦克3%+5，喀秋莎中心9%+15、边缘3%+5，轰炸机50%~75%随机+0~25随机；修整后开火密度额外+0.3%~0.7%（单次攻击内固定）。对兵单位单次杀伤上限为 75%+25；对炮单位按保底数杀伤、每次最高25；对耐久（重火力/地堡/工事）按密度%逐门掷骰，未中可补掷一次（每次行动限补一次）。</li>
+          <li data-page-node-id="iPUPmvZeLSMDVNXvxbpb3K"><b data-page-node-id="61bsoIPz5UVLHd19mTgVVg">防空地堡</b>：耐久3，使格内单位所受火力密度减半（对耐久即命中骰成功率减半）。</li>
+          <li data-page-node-id="eGwjWdbViuWriViU7HNesY"><b data-page-node-id="EodLoHVeIAqKDbpJWv9lqc">防御工事</b>：修在两个格子<b data-page-node-id="qYtzMguKsKmDlTtHskec0L">之间</b>（步兵休整时选邻格修筑，骑兵可拆毁；50人以上步兵团可直接拆除相邻工事与所在格地堡）。两侧任意一格被打击，工事即按密度%承受损毁判定（耐久1）。</li>
+          <li data-page-node-id="IGGdeoZZi7tqg8xpkuzWJC"><b data-page-node-id="dt5LXwwgeX7Q1qEFNNiOCI">冲锋战力</b>：步兵每人基础1，骑兵每人基础2；冲过工事×0.3；修整中×1.5（攻守通用）；骑兵作为进攻方额外×1.5。全体战力求和换算伤害比例 = 40 + 0.15×攻方战力 − 0.10×守方战力（10%~100%）。对步骑按比例杀伤（下限25，上限不超己方兵力2倍，界限冲突时上限优先）；对炮单位比例≥10即先损失75%，若该格已无守方步骑则全歼；对重火力按比例%掷骰掉1耐久。一次交战至多3轮，之后双方共格：进攻方下回合只能「战斗」，防守方可选择撤退或战斗。防守方反击用同一公式（反击时骑兵不享受进攻加成；战力值开战时固定）；反击后守方休整自动解除。</li>
+          <li data-page-node-id="q4mbyWMEPDCqFsdFzGDjR2"><b data-page-node-id="pRNF2ArqcVcNTptoQDK4VK">集火（集体冲锋）</b>：选一个目标点，本回合能赶到的所有己方步骑一起冲入，战力汇总结算。</li>
+          <li data-page-node-id="KT6fX7pnONyqF0fcrY2djR"><b data-page-node-id="0MkBOF2HVpSjfYZM10ILef">胜利</b>：非侦察兵地面兵团<b data-page-node-id="UQTEByXBeasstT6XQ1cxA6">连续占领</b>对方大本营 2 个回合结束点即获胜（侦察兵偷家不算）；或歼灭对方全部地面兵团。</li>
+          <li data-page-node-id="ny474pvojHEVwCsJXwqUVR"><b data-page-node-id="j1pRSKZJmKI0GHPz6xDyOD">积分</b>：开局可自定义双方积分上限（默认1500，双方一致），自由购兵。</li>
+          <li data-page-node-id="tHbepGMIKv1znUDeWVdQzL"><b data-page-node-id="ka2lf0wgxnN4fBe64pCmC4">地形</b>：地图上下180°旋转对称；簇状高地与禁地；一条河流贯穿、3座桥；禁地与无桥河面不可进入；空中单位飞越一切地形。高地仅作地形标识，不提供战斗加成。地图生成细节见本手册末尾。</li>
+          <li data-page-node-id="jdgqpSEEnejH2AQ9y9SiQu"><b data-page-node-id="6sTvppKpoW7RMBcdjU3g7B">昼夜/视野</b>：每10回合昼夜转换。夜晚全部视野−1，侦察兵−2。视野外的地形、敌军、工事、地堡不可见；照明区内双方都可看见；烟幕内非空中单位视野降为1且仅同烟幕单位互相可见。敌方空中单位永不可见，仅当距我方兵团≤3格时发出警报。</li>
+          <li data-page-node-id="WrUcZMwj0quhWEU22Dqlwh"><b data-page-node-id="EpGUHmSY3D5U5xwSYc2Xsm">情报</b>：视野内敌方地面兵团只显示规模（<50小 / 50~199中 / ≥200大，侦察兵永远算小）；战报日志仅显示己方行动与公开情报；对战AI时，交战报告中敌方的兵种与剩余兵力会被隐藏（只显示规模变化）。</li>
+          <li data-page-node-id="Mc8GvHgmQUwDA8e5LK6DY0"><b data-page-node-id="Zu9fYRiWdKagkPwpB00dKR">大本营雷达</b>：我方大本营5格内被远程打击时，可感知来袭火力距被打击地的格数。</li>
+          <li data-page-node-id="dw5P29gO3mabSTtGhfvJMh"><b data-page-node-id="mHBvKJe85V9AS2XXF5V8J9">补给</b>：空中单位飞回己方大本营即补满弹药；喀秋莎装填花一回合，装好后移动不再掉弹。</li>
+          <li data-page-node-id="VBAn6bJ2EIx0AgxBmw7X6J"><b data-page-node-id="y627EwBcLNW8xFdgk4eA1s">地图生成（规则手册）</b>：180°旋转对称生成——上半场随机游走出一条竖向河流并镜像，中心2×2连接；高地/禁地以成对种子点随机游走成簇；大本营周围2格清障并确保陆地连通；三座桥均位于河流直行段且两岸为陆地。生成失败自动重试。</li>
+          <li data-page-node-id="a8geCA6fD7oK31EVIXliHh"><b data-page-node-id="dpflYhICoTvT5EpmXFqMQp">指令</b>：每军团每回合一项指令（移动/冲锋/分兵/合兵/修整/打击/装填/投掷/轰炸/修工事/拆工事/修地堡/集体冲锋/战斗）。全部行动结束后系统会提示结束回合。</li>
+          <li data-page-node-id="mDiKHthXHqGoGEmHaBh8Yo"><b data-page-node-id="PiDqgWAJ5bADvxTYDAROHu">操作</b>：先点选军团，再点指令按钮，然后点击棋盘高亮格；Esc 或"取消"放弃当前操作（不消耗行动）。结束回合请点按钮（不绑定回车键，防误触）。</li>
         </ul>
       </details>
     </div>
   </aside>
 </main>
 
-<div id="modalWrap" class="hidden" data-page-node-id="wyul1jxqj95BTTyu9HiGAV"><div id="modalCard" data-page-node-id="Xuh0TH5zbD5MTNKH4HyRAB"></div></div>
-<div id="deployWrap" class="hidden" data-page-node-id="V3P1j35HiUv8yUM9ZTKZnd"><div id="deployCard" data-page-node-id="oapOdFnwDOts5y7FVfXdmd"></div></div>
+<div id="modalWrap" class="hidden" data-page-node-id="Wt3b7QUrRE5ywfkfB8TPqA"><div id="modalCard" data-page-node-id="dETL9CvKt96rhHI6bS49nB"></div></div>
+<div id="deployWrap" class="hidden" data-page-node-id="C2oGf6cggPKp3QQ2FZhVow"><div id="deployCard" data-page-node-id="kkkvgExoanJL9jpeoAswUu"></div></div>
 
 <script>
 "use strict";
 /* ============================================================
-   战场沙盘策略游戏 · 视野版（v2）
-   在 v1 规则基础上新增：战争迷雾视野、昼夜、10兵种积分部署、
-   防空地堡、照明弹/烟雾弹、轰炸机导弹、载具耐久、面杀伤等。
+   战场沙盘策略游戏 · v3.8
+   - 兵种分类与数值全面重写（兵/炮/重火力/空中四类）
+   - 伤害引擎重写：密度+保底+随机 / 耐久掷骰 / 冲锋战力公式+反击
+   - 防御工事改为"格间边"单位；照明弹双方可见
+   - 集火（集体冲锋）、战斗指令、大本营占领2回合、侦察兵偷家无效
+   - 地图生成重写（对称簇地形+对称河流+连通校验）
+   - 战役复盘（逐回合快照回放）、自定义积分（默认1500）
+   - AI 三档重制，困难档以60回合内结束对局为目标
    ============================================================ */
 
 const N = 20;
-const BASES = [[2,2],[16,16]];               // 0起始：第3行第3列 / 第17行第17列
+const BASES = [[2,2],[16,16]];
 const SIDE_NAME = ["红方","蓝方"];
 const DIRS4 = [[1,0],[-1,0],[0,1],[0,-1]];
+const ALL8 = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
 const T_NAME = { plain:"平地", highland:"高地", river:"河流", forbidden:"禁地" };
 
-/* ---------------- 兵种表 ----------------
-   move:最大步数  vision:白天视野  melee:是否有近战能力  air:空中
-   veh:载具(地/空)  ranged:可远程打击  canRest:可休整  dur:耐久(载具)
-   throwable:带照明弹/烟雾弹  missile:带导弹  scout:侦察兵  area:面杀伤 */
+/* ---------------- 兵种表（v3.8 全面重写） ----------------
+   cls: inf=兵单位 art=炮单位 hf=重火力 air=空中
+   move:正常移速  charge:冲锋移速(超速→下回合修整)
+   dens/flat:伤害密度%与保底  range/restRange:射程
+   needRest:须先修整  ammo:需装填  area:面杀伤 */
 const UNITS = {
-  inf:      { ch:"步", name:"步兵",   cost:1,   move:1, vision:2, melee:1, air:0, veh:0, ranged:0, canRest:1 },
-  cav:      { ch:"骑", name:"骑兵",   cost:4,   move:3, vision:3, melee:1, air:0, veh:0, ranged:0, canRest:1 },
-  lightArt: { ch:"轻", name:"轻炮兵", cost:5,   move:1, vision:3, melee:0, air:0, veh:0, ranged:1, canRest:1 },
-  scout:    { ch:"侦", name:"侦察兵", cost:5,   move:2, vision:6, melee:0, air:0, veh:0, ranged:0, canRest:1, scout:1, throwable:1 },
-  heavyArt: { ch:"重", name:"重炮兵", cost:10,  move:1, vision:3, melee:0, air:0, veh:0, ranged:1, canRest:1, heavy:1 },
-  tank:     { ch:"坦", name:"坦克",   cost:50,  move:2, vision:4, melee:1, air:0, veh:1, ranged:1, canRest:1, dur:3 },
-  katyusha: { ch:"喀", name:"喀秋莎", cost:50,  move:2, vision:4, melee:1, air:0, veh:1, ranged:1, canRest:0, dur:3, area:1 },
-  recon:    { ch:"机", name:"侦查机", cost:100, move:2, vision:3, melee:0, air:1, veh:1, ranged:0, canRest:0, throwable:1 },
-  bomber:   { ch:"轰", name:"轰炸机", cost:200, move:2, vision:3, melee:0, air:1, veh:1, ranged:0, canRest:0, throwable:1, missile:1 },
+  inf:      { ch:"步", name:"步兵",   cls:"inf", cost:1,   move:1, charge:2, vision:2, air:0, ranged:0, canRest:1 },
+  cav:      { ch:"骑", name:"骑兵",   cls:"inf", cost:3,   move:3, charge:4, vision:2, air:0, ranged:0, canRest:1 },
+  scout:    { ch:"侦", name:"侦察兵", cls:"inf", cost:50,  move:3, charge:3, vision:6, air:0, ranged:0, canRest:1, scout:1, throwable:1, flareMax:1, smokeMax:1, throwRange:4 },
+  lightArt: { ch:"轻", name:"轻炮兵", cls:"art", cost:5,   move:1, charge:0, vision:2, air:0, ranged:1, canRest:1, dens:3, flat:5, range:4, restRange:5 },
+  heavyArt: { ch:"重", name:"重炮兵", cls:"art", cost:10,  move:1, charge:0, vision:2, air:0, ranged:1, canRest:1, dens:5, flat:5, range:9, needRest:1 },
+  tank:     { ch:"坦", name:"坦克",   cls:"hf",  cost:25,  move:2, charge:0, vision:2, air:0, ranged:1, canRest:1, dur:3, dens:3, flat:5, range:3, restRange:4 },
+  katyusha: { ch:"喀", name:"喀秋莎", cls:"hf",  cost:50,  move:2, charge:0, vision:2, air:0, ranged:1, canRest:1, dur:1, dens:9, flat:15, eDens:3, eFlat:5, range:3, restRange:4, ammo:1, area:1 },
+  recon:    { ch:"机", name:"侦察机", cls:"air", cost:100, move:3, charge:0, vision:4, air:1, ranged:0, canRest:0, throwable:1, flareMax:3, smokeMax:3, throwRange:4 },
+  bomber:   { ch:"轰", name:"轰炸机", cls:"air", cost:200, move:2, charge:0, vision:3, air:1, ranged:0, canRest:0, bombMax:3, bombRange:1, bDensMin:50, bDensMax:75, bFlat:25 },
 };
 const DEPLOY_TYPES = ["inf","cav","lightArt","scout","heavyArt","tank","katyusha","recon","bomber"];
-const RECOMMEND = { inf:400, cav:30, lightArt:20, scout:4, heavyArt:10, tank:2, katyusha:1, recon:1, bomber:0 };
-const BUDGET = 1000;
+const RECOMMEND = { inf:500, cav:30, lightArt:30, scout:1, heavyArt:15, tank:6, katyusha:2, recon:1, bomber:1 };
 
-/* 近战损耗表：MELEE[己方兵种][敌方兵种] = 己方每回合基础损耗 */
-const MELEE = {
-  inf:      { inf:1,  cav:1,  tank:1,  katyusha:1  },
-  cav:      { inf:3,  cav:1,  tank:1,  katyusha:1  },
-  tank:     { inf:20, cav:10, tank:1,  katyusha:1  },
-  katyusha: { inf:20, cav:10, tank:1,  katyusha:1  },
-};
+/* 积分上限：开局可自定义，双方一致，默认 1500 */
+const DEFAULT_BUDGET = 1500;
+let gameBudget = DEFAULT_BUDGET;
+
+/* 冲锋战力公式：比例% = 40 + 0.15×攻方战力 − 0.10×守方战力，钳制 10~100 */
+const RAT_BASE = 40, RAT_A1 = 0.15, RAT_A2 = 0.10;
+const clampRatio = x => Math.max(10, Math.min(100, x));
 
 /* ---------------- 状态 ---------------- */
-let terrain, bridge, fort, bunker, bunkerDead;
-let flare, smokeLeft, smokeId;                 // 20x20
+let terrain, bridge, fortH, fortV, bunker, bunkerDead;   // fortH[r][c]=(r,c)-(r,c+1)  fortV[r][c]=(r,c)-(r+1,c)
+let flare, smokeLeft, smokeId;
 let corps = [], nextId = 1;
 let current = 0, turnNo = 1;
 let acted = new Set();
 let selId = null;
 let mode = "idle", modeData = {};
 let gameOver = false, winner = 0, victoryShown = false;
-let phase = "deploy";                           // deploy | handoff | play
+let phase = "deploy";                            // deploy | handoff | play
 let deploySide = 0, deployCfg = null;
-let seen = [];                                  // seen[side][r][c]
-let pendingMissiles = [];                       // {r,c,side}
+let seen = [];
 let smokeSeq = 1;
 let memoryFog = true;
-  let viewMode = "auto";  // 视角：auto=跟随当前方 red=红方 blue=蓝方 god=上帝
-  let cur={r:0,c:0};      // 键盘光标
+let viewMode = "auto";
+let cur = null;                                  // 键鼠共用光标：鼠标悬停/点击定位，WASD 微调，Enter 确认（null=不显示）
+let baseHold = [0,0];                            // 大本营被连续占领计数
+let battleStats = [];                            // 战术分析：每次交战记录（位置/战果/战损）
+let battleRecord = [];                           // 复盘快照
 
-/* ---------------- 单机 AI 对手状态 ---------------- */
-let aiSide=-1;          // -1=热座双人；0=红方AI；1=蓝方AI
-let aiDiff="medium";    // easy | medium | hard（对局中可随时切换，立即生效）
-let aiBusy=false;       // AI 回合动画播放中（锁定玩家输入）
-let aiFast=false;       // 快进标记
+/* ---------------- 单机 AI 状态 ---------------- */
+let aiSide=-1, aiDiff="medium", aiBusy=false, aiFast=false;
 let aiTimer=null, aiQueue=[];
-/* 定时器兼容：部分无 DOM 测试沙箱未注入 setTimeout/clearTimeout */
 const aiSetT  = (typeof setTimeout==="function")   ? setTimeout   : function(){ return 0; };
 const aiClearT= (typeof clearTimeout==="function") ? clearTimeout : function(){};
 
 /* ---------------- 工具 ---------------- */
 const randInt = (a,b)=> a + Math.floor(Math.random()*(b-a+1));
-const manh = (a,b)=> Math.abs(a.r-b.r) + Math.abs(a.c-b.c);   // 曼哈顿距离（菱形）
+const manh = (a,b)=> Math.abs(a.r-b.r) + Math.abs(a.c-b.c);
 const key = (r,c)=> r+","+c;
 const unkey = k => { const a=k.split(","); return {r:+a[0], c:+a[1]}; };
 const inMap = (r,c)=> r>=0&&r<N&&c>=0&&c<N;
@@ -390,8 +417,30 @@ const isDay = ()=> Math.floor((turnNo-1)/10) % 2 === 0;
 const dayNo = ()=> Math.floor((turnNo-1)/20) + 1;
 function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function grid(v){ return Array.from({length:N},()=>Array(N).fill(v)); }
+const unitTag = p => `${typeName(p.type)}(${p.r+1},${p.c+1})`;
+function sideLog(p){ return p.side===0?"red":"blue"; }
 
-/* ---------------- 地图生成（沿用 v1） ---------------- */
+/* 工事边存取 */
+function edgeBetween(r1,c1,r2,c2){
+  if(r2===r1+1) return "v,"+r1+","+c1;
+  if(r2===r1-1) return "v,"+r2+","+c2;
+  if(c2===c1+1) return "h,"+r1+","+c1;
+  if(c2===c1-1) return "h,"+r1+","+c2;
+  return null;
+}
+function edgeParse(ek){ const a=ek.split(","); return {o:a[0], r:+a[1], c:+a[2]}; }
+function getFort(ek){ const e=edgeParse(ek); return e.o==="h" ? fortH[e.r][e.c] : fortV[e.r][e.c]; }
+function setFort(ek,v){ const e=edgeParse(ek); if(e.o==="h") fortH[e.r][e.c]=v; else fortV[e.r][e.c]=v; }
+function edgesTouching(r,c){
+  const out=[];
+  if(inMap(r+1,c)) out.push("v,"+r+","+c);
+  if(inMap(r-1,c)) out.push("v,"+(r-1)+","+c);
+  if(inMap(r,c+1)) out.push("h,"+r+","+c);
+  if(inMap(r,c-1)) out.push("h,"+r+","+(c-1));
+  return out;
+}
+
+/* ---------------- 地图生成（v3.8 重写：对称簇 + 对称河 + 连通校验） ---------------- */
 function stationable(r,c){
   if(!inMap(r,c)) return false;
   if(terrain[r][c]==="forbidden") return false;
@@ -399,79 +448,123 @@ function stationable(r,c){
   return true;
 }
 function airStationable(r,c){ return inMap(r,c); }
-function tryRiver(){
-  const vis=new Set(), path=[]; let c=randInt(3,16), r=0, guard=0;
-  while(true){
-    if(++guard>200000) return null;
-    if(vis.has(key(r,c))) return null;
-    vis.add(key(r,c)); path.push([r,c]);
-    if(r===N-1) return path;
-    const cand=[];
-    if(r+1<N && !vis.has(key(r+1,c))){ cand.push([r+1,c]); cand.push([r+1,c]); cand.push([r+1,c]); }
-    if(c-1>=0 && !vis.has(key(r,c-1))) cand.push([r,c-1]);
-    if(c+1<N  && !vis.has(key(r,c+1))) cand.push([r,c+1]);
-    if(!cand.length) return null;
-    [r,c]=cand[randInt(0,cand.length-1)];
+/* 上半场(0~9行)随机游走一条竖向河，180°旋转镜像补全，中心2×2连接 */
+function tryRiverSym(){
+  let r=0, c=randInt(5,14), guard=0;
+  const cells=[];
+  while(r<=9 && guard++<400){
+    cells.push([r,c]);
+    if(r===9) break;
+    const opts=[[r+1,c],[r+1,c],[r+1,c]];
+    if(c-1>=3) opts.push([r,c-1]);
+    if(c+1<=16) opts.push([r,c+1]);
+    const nx=opts[randInt(0,opts.length-1)];
+    r=nx[0]; c=nx[1];
+  }
+  if(r!==9) return null;
+  const full=cells.slice();
+  const target = c<=9 ? 9 : 10;
+  const step = c<=9 ? 1 : -1;
+  let cc=c;
+  while(cc!==target && guard++<600){ cc+=step; full.push([9,cc]); }
+  full.push([9,9],[9,10],[10,9],[10,10]);
+  /* 按"上半场路径 → 下半场镜像(逆序)"拼接，保证 river[i±1] 与 river[i] 路径相邻 */
+  const out=[], vis=new Set();
+  const push=(rr,ccc)=>{ const k=rr+","+ccc; if(!vis.has(k)){ vis.add(k); out.push([rr,ccc]); } };
+  for(const [rr,ccc] of full) push(rr,ccc);
+  for(let i=full.length-1;i>=0;i--) push(N-1-full[i][0], N-1-full[i][1]);
+  return out;
+}
+function growBlob(r,c,t,size){
+  let queue=[[r,c]], vis=new Set([key(r,c)]), placed=0, guard=0;
+  while(placed<size && guard++<800 && queue.length){
+    const [cr,cc]=queue.splice(randInt(0,queue.length-1),1)[0];
+    terrain[cr][cc]=t; placed++;
+    for(const [dr,dc] of DIRS4){
+      const nr=cr+dr, nc=cc+dc;
+      if(inMap(nr,nc)&&!vis.has(key(nr,nc))){ vis.add(key(nr,nc)); queue.push([nr,nc]); }
+    }
   }
 }
+function connectedBases(){
+  const vis=new Set([key(BASES[0][0],BASES[0][1])]);
+  const q=[[BASES[0][0],BASES[0][1]]];
+  while(q.length){
+    const [r,c]=q.shift();
+    if(r===BASES[1][0]&&c===BASES[1][1]) return true;
+    for(const [dr,dc] of DIRS4){
+      const nr=r+dr,nc=c+dc;
+      if(!inMap(nr,nc)||vis.has(key(nr,nc))||!stationable(nr,nc)) continue;
+      vis.add(key(nr,nc)); q.push([nr,nc]);
+    }
+  }
+  return false;
+}
 function genMap(){
-  for(let attempt=0; attempt<800; attempt++){
-    const cells=[];
-    for(let i=0;i<40;i++)  cells.push("forbidden");
-    for(let i=0;i<80;i++)  cells.push("highland");
-    for(let i=0;i<280;i++) cells.push("plain");
-    shuffle(cells);
-    terrain = Array.from({length:N},(_,r)=>Array.from({length:N},(_,c)=>cells[r*N+c]));
-    bridge  = grid(false);
-    fort    = grid(false);
-    bunker  = grid(0);
-    bunkerDead = grid(false);
-    flare   = grid(0);
-    smokeLeft = grid(0);
-    smokeId = grid(0);
-
-    const river = tryRiver();
+  for(let attempt=0; attempt<900; attempt++){
+    terrain = Array.from({length:N},()=>Array(N).fill("plain"));
+    bridge = grid(false); fortH = grid(false); fortV = grid(false);
+    bunker = grid(0); bunkerDead = grid(false);
+    flare = grid(0); smokeLeft = grid(0); smokeId = grid(0);
+    /* 成对种子：高地簇 ×5、禁地簇 ×3（避开正中心） */
+    for(let i=0;i<5;i++){
+      const r=randInt(3,16), c=randInt(3,16), s=randInt(8,16);
+      growBlob(r,c,"highland",s); growBlob(N-1-r,N-1-c,"highland",s);
+    }
+    for(let i=0;i<3;i++){
+      const r=randInt(2,17), c=randInt(2,17);
+      if(Math.abs(r-9.5)<3 && Math.abs(c-9.5)<3){ i--; continue; }
+      growBlob(r,c,"forbidden",randInt(6,10)); growBlob(N-1-r,N-1-c,"forbidden",randInt(6,10));
+    }
+    /* 对称河流 */
+    const river = tryRiverSym();
     if(!river) continue;
     let ok=true;
     for(const [r,c] of river){
-      for(const [br,bc] of BASES) if(Math.abs(r-br)+Math.abs(c-bc)<=1){ ok=false; break; }
+      for(const [br,bc] of BASES) if(Math.abs(r-br)+Math.abs(c-bc)<=2){ ok=false; break; }
       if(!ok) break;
     }
-    if(!ok || river.length<12) continue;
+    if(!ok || river.length<14) continue;
     for(const [r,c] of river) terrain[r][c]="river";
+    /* 大本营清障 */
     for(const [br,bc] of BASES){
       terrain[br][bc]="highland";
-      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){
         const r=br+dr,c=bc+dc;
         if(inMap(r,c)&&terrain[r][c]==="forbidden") terrain[r][c]="plain";
       }
     }
-    const L=river.length;
-    // 桥位候选：河流必须在该格"直行"（上下游同为上下方向，不拐弯），
-    // 且左右两岸都存在、必须是真实陆地（平地/高地），这样桥才能横向过河
-    const cand=[];
+    /* 三桥：河流直行段且两岸为陆地 */
+    const L=river.length, cand=[];
     for(let i=1;i<L-1;i++){
       const [r,c]=river[i], [pr,pc]=river[i-1], [nr,nc]=river[i+1];
-      if(pc!==c||nc!==c) continue;                       // 上下游必须同列 → 直行通过
+      if(pc!==c||nc!==c) continue;
       if(Math.abs(pr-r)!==1||Math.abs(nr-r)!==1) continue;
-      if(c-1<0||c+1>=N) continue;                        // 两岸必须都在地图内
+      if(c-1<0||c+1>=N) continue;
       const bankT=[terrain[r][c-1],terrain[r][c+1]];
-      if(bankT.some(t=>t!=="plain"&&t!=="highland")) continue;  // 两岸禁地/河流 → 无法过河
+      if(bankT.some(t=>t!=="plain"&&t!=="highland")) continue;
       cand.push(i);
     }
-    // 前/中/后三段各随机取一，间隔≥3，保证三桥分散
     let idxs=null;
-    for(let t=0;t<300&&!idxs;t++){
+    for(let t=0;t<400&&!idxs;t++){
       const z1=cand.filter(i=>i<L/3), z2=cand.filter(i=>i>=L/3&&i<2*L/3), z3=cand.filter(i=>i>=2*L/3);
       if(!z1.length||!z2.length||!z3.length) break;
       const p=[z1[randInt(0,z1.length-1)],z2[randInt(0,z2.length-1)],z3[randInt(0,z3.length-1)]].sort((a,b)=>a-b);
       if(p[1]-p[0]>=3 && p[2]-p[1]>=3) idxs=p;
     }
-    if(!idxs) continue;                                  // 找不到3个合法桥位 → 重新生成河流
+    if(!idxs) continue;
     for(const i of idxs) bridge[river[i][0]][river[i][1]]=true;
+    if(!connectedBases()) continue;
     return;
   }
-  alert("地图生成失败，请重试");
+  /* 兜底：极简对称地图 */
+  terrain = Array.from({length:N},()=>Array(N).fill("plain"));
+  bridge=grid(false); fortH=grid(false); fortV=grid(false);
+  bunker=grid(0); bunkerDead=grid(false);
+  flare=grid(0); smokeLeft=grid(0); smokeId=grid(0);
+  for(const [r,c] of [[5,9],[6,9],[7,9],[8,9],[11,10],[12,10],[13,10],[14,10],[9,9],[9,10],[10,9],[10,10]]) terrain[r][c]="river";
+  bridge[6][9]=true; bridge[9][9]=true; bridge[13][10]=true;
+  for(const [br,bc] of BASES){ terrain[br][bc]="highland"; for(const [r,c] of [[br+1,bc],[br-1,bc],[br,bc+1],[br,bc-1]]) if(inMap(r,c)&&terrain[r][c]==="river") bridge[r][c]=true; }
 }
 
 /* ---------------- 视野系统 ---------------- */
@@ -489,7 +582,7 @@ function patchHasUnit(id, side){
 function visionRange(p){
   const u=U(p);
   let v = isDay() ? u.vision : (u.scout ? u.vision-2 : u.vision-1);
-  if(!u.air && smokePatchAt(p.r,p.c)!=null) v = Math.min(v,1);   // 烟幕内视野降为1
+  if(!u.air && smokePatchAt(p.r,p.c)!=null) v = Math.min(v,1);
   return Math.max(1, v);
 }
 function computeVision(side){
@@ -501,7 +594,6 @@ function computeVision(side){
       if(Math.abs(r-p.r)+Math.abs(c-p.c)<=v) vis.add(key(r,c));
     }
   }
-  // 烟幕内的己方单位可以看到整片烟幕
   const patches = new Set();
   for(const p of corps){
     if(!p.alive || p.side!==side) continue;
@@ -509,7 +601,7 @@ function computeVision(side){
     if(id!=null) patches.add(id);
   }
   for(const id of patches) for(const [r,c] of patchCells(id)) vis.add(key(r,c));
-  // 照明区全图可见
+  /* 照明区：双方都能看见（照明弹无条件加入任意一方的可见集） */
   for(let r=0;r<N;r++)for(let c=0;c<N;c++) if(flare[r][c]>0) vis.add(key(r,c));
   return vis;
 }
@@ -519,22 +611,21 @@ function markSeen(side, vis){
 function unitVisibleTo(u, side, vis){
   if(!u.alive) return false;
   if(u.side===side) return true;
-  if(U(u).air) return false;                       // 敌方空中单位永不可见
-  if(inFlare(u.r,u.c)) return true;                // 照明区内全图可见
+  if(U(u).air) return false;
+  if(inFlare(u.r,u.c)) return true;               // 照明区内双方可见
   const id = smokePatchAt(u.r,u.c);
-  if(id!=null) return patchHasUnit(id, side);      // 烟幕内仅同烟幕单位可见
+  if(id!=null) return patchHasUnit(id, side);
   return vis.has(key(u.r,u.c));
 }
 function structVisibleAt(r,c,side,vis){
-  if(!fort[r][c] && !(bunker[r][c]>0)) return false;
+  if(!(bunker[r][c]>0) && !edgesTouching(r,c).some(getFort)) return false;
   const id = smokePatchAt(r,c);
   if(id!=null && !patchHasUnit(id,side)) return false;
   return vis.has(key(r,c));
 }
-/* 敌方规模：只暴露大中小 */
 function enemySizeClass(stack){
   const nonScout = stack.filter(p=>!U(p).scout);
-  if(!nonScout.length) return "小";                 // 全是侦察兵 → 永远小
+  if(!nonScout.length) return "小";
   let pts=0;
   for(const p of nonScout) pts += U(p).cost * p.troops;
   if(pts>=200) return "大";
@@ -544,24 +635,26 @@ function enemySizeClass(stack){
 
 /* ---------------- 部署 ---------------- */
 function newGame(){
-  aiStop();                 // 兜底：清掉可能残留的 AI 定时器
+  aiStop();
+  aiMemory[0]={}; aiMemory[1]={};               // 清空 AI 情报记忆
+  aiDoctrine[0]="hunt"; aiDoctrine[1]="hunt";   // 重置战略规划
   genMap();
   corps=[]; nextId=1; acted.clear(); selId=null;
-  current=0; turnNo=1; gameOver=false; victoryShown=false;
-  mode="idle"; modeData={}; pendingMissiles=[];
-  flare=grid(0); smokeLeft=grid(0); smokeId=grid(0); smokeSeq=1;
+  current=0; turnNo=1; gameOver=false; winner=0; victoryShown=false;
+  mode="idle"; modeData={}; smokeSeq=1;
+  flare=grid(0); smokeLeft=grid(0); smokeId=grid(0);
   seen=[grid(false), grid(false)];
+  baseHold=[0,0]; battleRecord=[]; battleStats=[];
   phase="deploy"; deploySide=0;
-  viewMode="auto"; renderViewBtn(); cur={r:0,c:0};
+  viewMode="auto"; renderViewBtn(); cur=null;
+  const rb=document.getElementById("replayBtn"); if(rb) rb.disabled=true;
   logEntries.length=0;
   document.getElementById("log").innerHTML="";
-  render();          // 部署阶段先让双方看清地形（此时尚无迷雾）
+  render();
   renderDeploy();
-  if(aiSide===0) aiAutoDeploy();   // 红方为 AI：自动部署后进入蓝方（人类）部署
+  if(aiSide===0) aiAutoDeploy();
 }
-function deployConfigDefaults(){
-  const o={}; for(const t of DEPLOY_TYPES) o[t]=0; return o;
-}
+function deployConfigDefaults(){ const o={}; for(const t of DEPLOY_TYPES) o[t]=0; return o; }
 function renderDeploy(){
   const wrap=document.getElementById("deployWrap");
   const card=document.getElementById("deployCard");
@@ -582,16 +675,16 @@ function renderDeploy(){
     rows+=`<div class="drow">
       <span class="mini ${u.air?"air":(deploySide===0?"red":"blue")}">${u.ch}</span>
       <span class="dname">${u.name}</span>
-      <span class="dcost">${u.cost} 分/${t==="tank"||t==="katyusha"?"辆":(u.air?"架":"名")}</span>
+      <span class="dcost">${u.cost} 分/${t==="tank"||t==="katyusha"?"辆":(t==="scout"?"支":(u.air?"架":(u.cls==="art"?"门":"名")))}</span>
       <input type="number" min="0" step="1" data-dt="${t}" value="${deployCfg[t]||0}">
       <span class="dtip">${unitTip(t)}</span>
     </div>`;
   }
   card.innerHTML=`<h2>部署阶段 · <span style="color:${deploySide===0?"#c62828":"#1565c0"}">${SIDE_NAME[deploySide]}</span></h2>
-    <div class="deploy-sub">可支配 <b>${BUDGET}</b> 积分，自由采购兵团。所有兵团开局驻守己方大本营（第 ${BASES[deploySide][0]+1} 行第 ${BASES[deploySide][1]+1} 列）。<br>
-    <b>必须至少采购 1 支地面兵团</b>（无地面兵团即判负）。</div>
+    <div class="deploy-sub">积分上限 <input type="number" id="budgetInput" data-bud="1" value="${gameBudget}" min="100" step="50" style="width:90px"> 分（双方一致，默认 ${DEFAULT_BUDGET}）。<br>
+    所有兵团开局驻守己方大本营（第 ${BASES[deploySide][0]+1} 行第 ${BASES[deploySide][1]+1} 列）。<b>必须至少采购 1 支地面兵团</b>。</div>
     ${rows}
-    <div class="deploy-foot">剩余积分 <b id="deployLeft">${BUDGET}</b> / ${BUDGET}</div>
+    <div class="deploy-foot">剩余积分 <b id="deployLeft">${gameBudget}</b> / <span id="budgetShow">${gameBudget}</span></div>
     <div class="deploy-btns">
       <button class="btn" data-action="deploy-recommend">推荐配置</button>
       <button class="btn" data-action="deploy-clear">清空</button>
@@ -602,44 +695,52 @@ function renderDeploy(){
 function unitTip(t){
   const u=UNITS[t];
   const extra=[];
-  extra.push("移动"+u.move+"格");
+  extra.push(`走${u.move}格`+(u.charge>u.move?` 可冲${u.charge}格`:""));
   extra.push("视野"+u.vision);
-  if(u.ranged) extra.push("可远程打击");
-  if(u.dur) extra.push("耐久3");
-  if(u.area) extra.push("3×3面杀伤");
-  if(u.throwable) extra.push("带照明/烟幕");
-  if(u.missile) extra.push("带导弹");
-  if(u.scout) extra.push("视作小兵团");
+  if(u.ranged){
+    let r=`射程${u.range}`+(u.restRange?`(修整${u.restRange})`:"");
+    if(u.needRest) r+="·须先修整";
+    if(u.area) r+="·3×3面杀伤";
+    extra.push(r);
+    extra.push(`密度${u.dens}%+${u.flat}`);
+  }
+  if(u.dur) extra.push(`耐久${u.dur}`);
+  if(u.ammo) extra.push("需装填弹药");
+  if(u.throwable) extra.push(`照明${u.flareMax}/烟${u.smokeMax}(投程${u.throwRange})`);
+  if(u.bombMax) extra.push(`炸弹×${u.bombMax}(投程${u.bombRange})`);
+  if(u.scout) extra.push("视作小兵团·无法进攻");
   if(u.air) extra.push("空中·不可见");
-  if(!u.canRest) extra.push("无休整");
   return extra.join(" · ");
 }
 function deploySpent(cfg){ let s=0; for(const t of DEPLOY_TYPES) s += (cfg[t]||0)*UNITS[t].cost; return s; }
 function updateDeployLeft(){
   const el=document.getElementById("deployLeft");
   if(!el) return;
-  const left=BUDGET-deploySpent(deployCfg);
+  const left=gameBudget-deploySpent(deployCfg);
   el.textContent=left;
   el.style.color = left<0 ? "#c62828" : "#1f6f43";
+  const bs=document.getElementById("budgetShow"); if(bs) bs.textContent=gameBudget;
 }
 function readDeployInputs(){
   for(const t of DEPLOY_TYPES){
     const inp=document.querySelector(`input[data-dt="${t}"]`);
     if(inp){ let v=parseInt(inp.value,10); if(isNaN(v)||v<0) v=0; deployCfg[t]=v; }
   }
+  const b=document.querySelector('input[data-bud="1"]');
+  if(b){ let v=parseInt(b.value,10); if(isNaN(v)||v<100) v=DEFAULT_BUDGET; gameBudget=Math.min(100000,v); }
 }
 function confirmDeploy(){
   readDeployInputs();
-  const left=BUDGET-deploySpent(deployCfg);
-  if(left<0){ alert("积分超出预算！请减少采购。"); return; }
+  const left=gameBudget-deploySpent(deployCfg);
+  if(left<0){ alert(`积分超出预算 ${gameBudget}！请减少采购。`); return; }
   let ground=0;
   for(const t of DEPLOY_TYPES) if(deployCfg[t]>0 && !UNITS[t].air) ground+=deployCfg[t];
   if(!ground){ alert("必须至少采购 1 支地面兵团。"); return; }
   spawnFromConfig(deploySide, deployCfg);
-  log(`${SIDE_NAME[deploySide]} 部署完成，投入 ${deploySpent(deployCfg)} 积分。`, deploySide===0?"red":"blue");
+  log(`${SIDE_NAME[deploySide]} 部署完成，投入 ${deploySpent(deployCfg)} / ${gameBudget} 积分。`, deploySide===0?"red":"blue");
   if(deploySide===0){
     deploySide=1; deployCfg=null; phase="handoff"; renderDeploy();
-    if(aiSide===1) aiAutoDeploy();   // 蓝方为 AI：跳过移交，直接自动部署进入对局
+    if(aiSide===1) aiAutoDeploy();
   }
   else { phase="play"; deployCfg=null; viewMode="auto"; renderViewBtn(); document.getElementById("deployWrap").classList.add("hidden"); startPlay(); }
 }
@@ -648,158 +749,150 @@ function spawnFromConfig(side, cfg){
   for(const t of DEPLOY_TYPES){
     const n=cfg[t]||0;
     if(n<=0) continue;
+    const u=UNITS[t];
     corps.push({ id:nextId++, side, type:t, troops:n, r:br, c:bc,
-                 resting:false, fatigue:0, alive:true, acc:0,
-                 dur: UNITS[t].dur||0,
-                 flare: UNITS[t].throwable?1:0, smoke: UNITS[t].throwable?1:0,
-                 missile: UNITS[t].missile?1:0, ammo:false });
+                 resting:false, fatigue:0, alive:true, moved:false, lockAtk:false, lockDef:false,
+                 dur: u.dur||0,
+                 flare: u.flareMax||0, smoke: u.smokeMax||0, bombs: u.bombMax||0, ammo:false });
   }
 }
 function startPlay(){
   current=0; turnNo=1; acted.clear(); selId=null;
   log("全员集结完毕，战斗开始！红方先行。", "sys", null);
   log("☀ 白天（第 1 天）· 视野范围正常。", "sys", null);
+  takeSnapshot();
   render();
-  if(aiSide===current && !gameOver) runAiTurn();   // 红方为 AI：开局即触发 AI 回合
+  if(aiSide===current && !gameOver) runAiTurn();
 }
 
-/* ---------------- 战斗：近战损耗 ---------------- */
-function death(p){ p.troops=0; p.alive=false; p.acc=0; }
-// 返回该单位本回合的"基础损耗"（可为小数：让"减半"在低损耗下也真实累积生效）
-function meleeLoss(self, opp, isDefender){
-  const u=U(self);
-  if(!u.melee) return self.troops;              // 无近战能力 → 被全歼
-  if(!U(opp).melee) return 0;                   // 对方无近战能力
-  const tbl=MELEE[self.type]||{};
-  let base = (tbl[opp.type]!=null) ? tbl[opp.type] : 1;
-  let m=1;
-  if(self.resting) m*=0.5;                       // 休整减半
-  if(terrain[self.r][self.c]==="highland") m*=0.5;   // 高地减半
-  if(isDefender && fort[self.r][self.c]) m*=0.5;     // 工事(被进攻方)减半
-  if(u.dur) m *= self.dur/3;                          // 载具耐久 n/3
-  return base*m;
-}
-// 逐轮消耗；小数部分保留累积，体现"四舍五入"与"减半"的持续效果
-function attrition(A,B,seg){
-  let guard=0;
-  A.acc=0; B.acc=0;
-  while(A.alive && B.alive){
-    if(++guard>20000) break;
-    const fa=meleeLoss(A,B,false), fb=meleeLoss(B,A,true);
-    A.acc+=fa; B.acc+=fb;
-    const la=Math.floor(A.acc), lb=Math.floor(B.acc);
-    A.acc-=la; B.acc-=lb;
-    A.troops-=la; B.troops-=lb;
-    seg.rounds.push({la,lb,aLeft:Math.max(0,A.troops),bLeft:Math.max(0,B.troops)});
-    if(A.troops<=0) death(A);
-    if(B.troops<=0) death(B);
-  }
-}
-function groundEnemyAt(r,c,side){
-  for(const p of corps) if(p.alive && p.side!==side && p.r===r && p.c===c && !U(p).air) return p;
-  return null;
-}
-function anyEnemyAt(r,c,side){
-  for(const p of corps) if(p.alive && p.side!==side && p.r===r && p.c===c) return p;
-  return null;
-}
-function resolveMelee(atk){
-  const segs=[]; const r=atk.r, c=atk.c;
-  while(atk.alive){
-    const def=groundEnemyAt(r,c,atk.side);
-    if(!def) break;
-    const seg={ atk0:atk.troops, atkType:atk.type, atkId:atk.id,
-                def, def0:def.troops, rounds:[], special:null, defDead:false, atkDead:false };
-    attrition(atk,def,seg);
-    seg.defDead=!def.alive; seg.atkDead=!atk.alive;
-    segs.push(seg);
-  }
-  return segs;
-}
-
-/* ---------------- 战斗：远程打击 ---------------- */
-function strikeBase(p){          // 每个单位击杀数
-  if(p.type==="lightArt") return p.resting?5:3;
-  if(p.type==="heavyArt") return 8;
-  if(p.type==="tank")     return 20;
-  if(p.type==="katyusha") return 30;
-  return 0;
-}
-function strikeRange(p){
-  const hi = (terrain[p.r][p.c]==="highland") ? 1 : 0;
-  if(p.type==="lightArt") return (p.resting?5:4)+hi;
-  if(p.type==="heavyArt") return 8+hi;
-  if(p.type==="tank")     return (p.resting?4:3)+hi;
-  if(p.type==="katyusha") return 4+hi;
-  return 0;
-}
-function canStrike(p){
+/* ---------------- 远程打击（v3.8 密度引擎） ---------------- */
+function durRoll(pct){ return Math.random()*100 < pct; }
+function densityOf(p, ov){
   const u=U(p);
-  if(!u.ranged) return false;
-  if(p.type==="heavyArt") return !!p.resting;      // 重炮仅休整可打
-  if(p.type==="katyusha") return !!p.ammo;         // 需先装填弹药
-  return true;
+  if(ov) return { pct: ov.pct, flat: ov.flat };
+  let pct=u.dens;
+  if(p.resting) pct += 0.3 + Math.random()*0.4;   // 修整加成 0.3~0.7（单次攻击固定）
+  return { pct, flat: u.flat };
 }
-function strikeHint(p){
-  if(p.type==="heavyArt" && !p.resting) return "重炮兵仅在休整状态下才能打击。";
-  if(p.type==="katyusha" && !p.ammo) return "喀秋莎尚未装填弹药，需先执行「装填弹药」。";
-  return "";
-}
-function isArtOrGroundVeh(p){
-  return p.type==="lightArt" || p.type==="heavyArt" || p.type==="tank" || p.type==="katyusha";
-}
-// 对某格结算一次打击；power 为未打折的威力
-function strikeCell(shooter, r, c, power, rep){
-  rep = rep || { cells:[], fort:0, bunker:0, bunkerDead:0, hits:0 };
-  // 摧毁防御工事
-  if(fort[r][c]){ fort[r][c]=false; rep.fort++; }
-  // 防空地堡
-  let mult=1;
-  if(bunker[r][c]>0){
-    bunker[r][c]--; rep.bunker++;
-    mult=0.5;
-    if(bunker[r][c]===0){ bunkerDead[r][c]=true; rep.bunkerDead++; }
+function gunCount(p){ return p.troops; }
+/* 对某格结算一次打击。ov 为可选的密度覆写（喀秋莎边缘 / 轰炸机） */
+function strikeCellRanged(shooter, r, c, rep, ov){
+  const cellRep={r,c,hits:[],none:false};
+  const bunkerHere = bunker[r][c]>0;
+  const half = bunkerHere ? 0.5 : 1;
+  /* 防空地堡：自身按密度%掉耐久（每门炮一击+补掷一击），并使伤害减半 */
+  if(bunkerHere){
+    let brk=0;
+    for(let g=0;g<gunCount(shooter);g++){
+      const d=densityOf(shooter,ov);
+      if(durRoll(d.pct*half)) brk++;
+      else if(durRoll(d.pct*half)) brk++;
+    }
+    if(brk>0){
+      bunker[r][c]=Math.max(0,bunker[r][c]-brk);
+      rep.bunk=(rep.bunk||0)+brk;
+      if(bunker[r][c]===0){ bunkerDead[r][c]=true; rep.bunkDead=(rep.bunkDead||0)+1; }
+    }
+  }
+  /* 防御工事边：被打击格相邻的边，按密度%判定损毁（耐久1） */
+  for(const ek of edgesTouching(r,c)){
+    if(!getFort(ek)) continue;
+    let broke=false;
+    for(let g=0;g<gunCount(shooter)&&!broke;g++){
+      const d=densityOf(shooter,ov);
+      if(durRoll(d.pct*half)) broke=true;
+      else if(durRoll(d.pct*half)) broke=true;
+    }
+    if(broke){ setFort(ek,false); rep.forts.push(ek); }
   }
   const targets = corps
     .filter(t=>t.alive && t.side!==shooter.side && t.r===r && t.c===c && !U(t).air)
     .sort((a,b)=>b.troops-a.troops);
-  const cellRep={r,c,power,hits:[],none:false};
-  if(!targets.length) cellRep.none=true;
+  if(!targets.length){ cellRep.none=true; rep.cells.push(cellRep); return cellRep; }
   for(const t of targets){
-    let m=mult;
-    if(t.resting) m*=0.5;
-    if(terrain[r][c]==="highland") m*=0.5;
-    let dmg=Math.round(power*m);
-    if(power>0 && dmg<1) dmg=1;
-    const real=Math.min(dmg, t.troops);
-    t.troops-=dmg;
-    const hadDur=!!U(t).dur;
-    const durBefore=t.dur;
-    if(U(t).dur && isArtOrGroundVeh(shooter)) t.dur--;
-    const vehLost = hadDur && t.dur<durBefore;      // 载具掉了一点耐久
-    const vehDead = hadDur && t.dur<=0;             // 载具被击毁
-    const dead = (t.troops<=0) || vehDead;
+    const u2=U(t);
+    let killed=0, durLost=0, dead=false;
+    if(u2.cls==="inf"){
+      let acc=0;
+      const before=t.troops;
+      for(let g=0;g<gunCount(shooter);g++){
+        const d=densityOf(shooter,ov);
+        acc += Math.round(before*(d.pct/100)*half + d.flat + Math.random()*d.flat*0.4);
+      }
+      const cap = Math.floor(before*0.75)+25;         // 单次杀伤上限 75%+25
+      killed = Math.min(acc, cap, before);
+    } else if(u2.cls==="art"){
+      const d=densityOf(shooter,ov);
+      killed = Math.min(gunCount(shooter)*Math.min(d.flat,25), t.troops);  // 保底数杀伤，每次最高25
+    } else { /* 重火力：耐久按密度%掷骰，未中补掷一次 */
+      let hits=0;
+      for(let g=0;g<gunCount(shooter);g++){
+        const d=densityOf(shooter,ov);
+        if(durRoll(d.pct*half)) hits++;
+        else if(durRoll(d.pct*half)) hits++;
+      }
+      durLost=Math.min(hits,t.dur);
+      t.dur-=durLost;
+      if(t.dur<=0) dead=true;
+    }
+    if(killed>0) t.troops-=killed;
+    if(t.troops<=0) dead=true;
     if(dead) death(t);
-    cellRep.hits.push({ t, dmg, real, dead, vehLost, vehDead });
+    cellRep.hits.push({ type:t.type, killed, durLost, dead });
   }
   rep.cells.push(cellRep);
+  return cellRep;
+}
+function performStrike(shooter, r, c){
+  const rep={cells:[],forts:[],bunk:0,bunkDead:0,area:false};
+  const before=enemyTroopsTotal(shooter.side);
+  strikeCellRanged(shooter,r,c,rep,null);
+  shooter.resting=false;                           // 开火后休整解除（修整加成已消耗）
+  baseRadar(shooter,[[r,c]]);
+  recordBattle(shooter.side,"炮击",r,c,{dmg:before-enemyTroopsTotal(shooter.side)});
   return rep;
 }
-function katyushaStrike(cp, cr, cc){
-  const total=cp.troops*strikeBase(cp);
-  const rep={ cells:[], fort:0, bunker:0, bunkerDead:0, area:true };
-  strikeCell(cp, cr, cc, total*0.5, rep);
-  const per=(total*0.5)/8;
-  const nb=[];
-  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){ if(!dr&&!dc) continue; const r=cr+dr,c=cc+dc; if(inMap(r,c)) nb.push([r,c]); }
-  const acc=new Map();
-  for(let i=0;i<8;i++){ const [r,c]=nb[randInt(0,nb.length-1)]; const k=key(r,c); acc.set(k,(acc.get(k)||0)+per); }
-  for(const [k,v] of acc){ const p2=unkey(k); strikeCell(cp,p2.r,p2.c,v,rep); }
+function performKatyusha(cp, cr, cc){
+  const rep={cells:[],forts:[],bunk:0,bunkDead:0,area:true};
+  const u=U(cp);
+  const before=enemyTroopsTotal(cp.side);
+  const ovC = cp.resting ? {pct:u.dens+0.3+Math.random()*0.4, flat:u.flat} : null;
+  strikeCellRanged(cp,cr,cc,rep,ovC);
+  const ovE = cp.resting ? {pct:u.eDens+0.3+Math.random()*0.4, flat:u.eFlat} : {pct:u.eDens, flat:u.eFlat};
+  for(const [dr,dc] of ALL8){
+    if(!dr&&!dc) continue;
+    const r=cr+dr,c=cc+dc;
+    if(inMap(r,c)) strikeCellRanged(cp,r,c,rep,ovE);
+  }
+  cp.ammo=false; cp.resting=false;
+  baseRadar(cp,[[cr,cc]]);
+  recordBattle(cp.side,"火箭",cr,cc,{dmg:before-enemyTroopsTotal(cp.side)});
   return rep;
 }
-// 大本营雷达：感知来袭炮兵/载具距被打击地的格数
+function performBomb(b, r, c){
+  b.bombs--;
+  const rep={cells:[],forts:[],bunk:0,bunkDead:0,area:false,bomb:true};
+  const before=enemyTroopsTotal(b.side);
+  const ov={pct:randInt(U(b).bDensMin,U(b).bDensMax), flat:randInt(0,U(b).bFlat)};
+  strikeCellRanged(b,r,c,rep,ov);
+  baseRadar(b,[[r,c]]);
+  recordBattle(b.side,"轰炸",r,c,{dmg:before-enemyTroopsTotal(b.side)});
+  return rep;
+}
+/* 战果记录：发动位置（含距双方大本营距离与区域分类）+ 交战结果 */
+function enemyTroopsTotal(side){
+  let s=0; for(const p of corps) if(p.alive&&p.side!==side) s+=p.troops;
+  return s;
+}
+function recordBattle(side, kind, r, c, extra){
+  const [er,ec]=BASES[1-side], [mr,mc]=BASES[side];
+  const dE=Math.abs(r-er)+Math.abs(c-ec), dO=Math.abs(r-mr)+Math.abs(c-mc);
+  const zone = dE<=8?"深入敌境":(dO<=8?"本方腹地":"中场拉锯");
+  battleStats.push(Object.assign({round:turnNo, side, kind, r, c, zone, dE, dO}, extra||{}));
+}
+/* 大本营雷达 */
 function baseRadar(shooter, cells){
-  if(!shooter) return false;
+  if(!shooter) return;
   const defSide=1-shooter.side;
   const [br,bc]=BASES[defSide];
   let hit=false, minD=Infinity;
@@ -809,10 +902,154 @@ function baseRadar(shooter, cells){
       minD=Math.min(minD, Math.abs(shooter.r-r)+Math.abs(shooter.c-c));
     }
   }
-  if(hit){
-    log(`📡 大本营雷达（${SIDE_NAME[defSide]}）：侦测到敌方远程火力打击，来袭火力距被打击地 ${minD} 格。`, "warn", defSide);
+  if(hit) log(`📡 大本营雷达（${SIDE_NAME[defSide]}）：侦测到敌方远程火力打击，来袭火力距被打击地 ${minD} 格。`, "warn", defSide);
+}
+
+/* ---------------- 冲锋战斗（v3.8 战力公式） ---------------- */
+function death(p){ p.troops=0; p.alive=false; p.acc=0; }
+function meleeCapable(p){ return U(p).cls==="inf" && !U(p).scout; }
+function unitPower(p, isAtk, crossedFort){
+  let base = p.type==="cav" ? 2 : 1;
+  let v = base*p.troops;
+  if(p.resting) v*=1.5;
+  if(isAtk && p.type==="cav") v*=1.5;
+  if(crossedFort) v*=0.3;
+  return v;
+}
+function groundEnemyAt(r,c,side){
+  for(const p of corps) if(p.alive && p.side!==side && p.r===r && p.c===c && !U(p).air) return p;
+  return null;
+}
+function coLocatedEnemy(p){
+  return corps.some(q=>q.alive && q.side!==p.side && q.r===p.r && q.c===p.c && !U(q).air);
+}
+function infCavAt(r,c,side){
+  return corps.filter(p=>p.alive && p.side===side && p.r===r && p.c===c && !U(p).air && meleeCapable(p));
+}
+function applyLoss(list, dmg){
+  const total=list.reduce((s,p)=>s+p.troops,0);
+  if(total<=0||dmg<=0) return 0;
+  let dealt=0, rem=dmg;
+  for(const p of list){
+    if(!p.alive) continue;
+    let d=Math.floor(dmg*p.troops/total);
+    d=Math.min(d,p.troops);
+    p.troops-=d; dealt+=d; rem-=d;
+    if(p.troops<=0) death(p);
   }
-  return hit;
+  for(const p of list){
+    if(rem<=0) break;
+    if(!p.alive) continue;
+    const d=Math.min(rem,p.troops);
+    p.troops-=d; dealt+=d; rem-=d;
+    if(p.troops<=0) death(p);
+  }
+  return dealt;
+}
+/* 非步骑防守方结算：炮按比例先损75%、无守方步骑则全歼；重火力按比例%掷骰掉耐久；侦察兵被歼 */
+function resolveNonInfDef(defs, ratio, seg){
+  const infLeft = defs.some(p=>p.alive && meleeCapable(p));
+  for(const p of defs){
+    if(!p.alive) continue;
+    const cls=U(p).cls;
+    if(p.type==="scout"){ death(p); seg.nonInf.push({type:p.type,killed:p.troops,durLost:0,dead:true}); continue; }
+    if(cls==="art"){
+      if(ratio>=10) p.troops=Math.floor(p.troops*0.25);
+      const dead = p.troops<=0;
+      if(dead) death(p);
+      seg.nonInf.push({type:p.type,killed:p.troops,durLost:0,dead});
+    } else if(cls==="hf"){
+      const hit = durRoll(ratio);
+      let durLost=0;
+      if(hit){ durLost=1; p.dur--; if(p.dur<=0){ death(p); } }
+      const dead=!p.alive;
+      seg.nonInf.push({type:p.type,killed:0,durLost,dead});
+    }
+  }
+  /* 守方步骑已全歼 → 残余炮单位全灭 */
+  if(!defs.some(p=>p.alive && meleeCapable(p))){
+    for(const p of defs){
+      if(p.alive && U(p).cls==="art"){
+        seg.nonInf.push({type:p.type,killed:p.troops,durLost:0,dead:true});
+        death(p);
+      }
+    }
+  }
+}
+/*
+ * resolveBattle(atkUnits, r, c)
+ * atkUnits：冲入/驻守在 (r,c) 的进攻方步骑兵。守方为该格全部敌方地面单位。
+ * 单次交战至多 3 轮；未分出胜负则双方共格锁定（进攻方只能战斗，防守方可撤退）。
+ */
+function resolveBattle(atkUnits, r, c){
+  const atkSide=atkUnits[0].side;
+  const seg={r,c,atkSide,Pa:0,Pd:0,rA:0,rD:0,rounds:[],nonInf:[],atkDead:false,defDead:false,locked:false};
+  const aInf=atkUnits.filter(p=>p.alive&&meleeCapable(p));
+  const defs=corps.filter(p=>p.alive&&p.side!==atkSide&&p.r===r&&p.c===c&&!U(p).air);
+  const dInf=defs.filter(p=>meleeCapable(p));
+  if(!aInf.length||!defs.length){ seg.empty=true; return seg; }
+  seg.atk0=aInf.map(p=>({type:p.type,n:p.troops}));
+  seg.def0=defs.map(p=>({type:p.type,n:p.troops}));
+  seg.Pa=aInf.reduce((s,p)=>s+unitPower(p,true,!!p.__crossed),0);
+  seg.Pd=dInf.reduce((s,p)=>s+unitPower(p,false,false),0);
+  seg.rA=clampRatio(RAT_BASE + RAT_A1*seg.Pa - RAT_A2*seg.Pd);
+  seg.rD=clampRatio(RAT_BASE + RAT_A1*seg.Pd - RAT_A2*seg.Pa);
+  for(const p of aInf) p.resting=false;
+  for(let round=1;round<=3;round++){
+    let di=infCavAt(r,c,1-atkSide);
+    const atkNow=infCavAt(r,c,atkSide).filter(p=>aInf.includes(p));
+    if(!atkNow.length){ seg.atkDead=true; break; }
+    if(!di.length){
+      resolveNonInfDef(corps.filter(p=>p.alive&&p.side!==atkSide&&p.r===r&&p.c===c&&!U(p).air), seg.rA, seg);
+      break;
+    }
+    /* 进攻方杀伤：比例% × 守方步骑，下限25，上限 ≤2×攻方兵力 */
+    const defTroops=di.reduce((s,p)=>s+p.troops,0);
+    const atkTroops=atkNow.reduce((s,p)=>s+p.troops,0);
+    let dmg=Math.round(defTroops*seg.rA/100);
+    dmg=Math.min(Math.max(dmg,25), atkTroops*2, defTroops);
+    applyLoss(di,dmg);
+    seg.rounds.push({admg:dmg, atkLeft:atkTroops, ddmg:0, defLeft:infCavAt(r,c,1-atkSide).reduce((s,p)=>s+p.troops,0)});
+    if(!infCavAt(r,c,1-atkSide).length){
+      resolveNonInfDef(corps.filter(p=>p.alive&&p.side!==atkSide&&p.r===r&&p.c===c&&!U(p).air), seg.rA, seg);
+      break;
+    }
+    /* 守方反击（战力值固定，反击骑兵不加成） */
+    const atkAlive=infCavAt(r,c,atkSide).filter(p=>aInf.includes(p));
+    const atkT=atkAlive.reduce((s,p)=>s+p.troops,0);
+    const defNow=infCavAt(r,c,1-atkSide);
+    const defT=defNow.reduce((s,p)=>s+p.troops,0);
+    let cdmg=Math.round(atkT*seg.rD/100);
+    cdmg=Math.min(Math.max(cdmg,25), defT*2, atkT);
+    applyLoss(atkAlive,cdmg);
+    seg.rounds.push({admg:0, atkLeft:infCavAt(r,c,atkSide).filter(p=>aInf.includes(p)).reduce((s,p)=>s+p.troops,0),
+                     ddmg:cdmg, defLeft:defT});
+    /* 守方休整在反击后自动解除 */
+    for(const d of defs) if(d.alive&&d.resting) d.resting=false;
+    if(!infCavAt(r,c,atkSide).some(p=>aInf.includes(p))){ seg.atkDead=true; break; }
+  }
+  seg.defDead=!corps.some(p=>p.alive&&p.side!==atkSide&&p.r===r&&p.c===c&&!U(p).air);
+  seg.atkDead=seg.atkDead||!corps.some(p=>p.alive&&p.side===atkSide&&p.r===r&&p.c===c&&meleeCapable(p)&&atkUnits.includes(p));
+  /* 共格锁定 */
+  const atkRem=infCavAt(r,c,atkSide).some(p=>atkUnits.includes(p));
+  const defRem=infCavAt(r,c,1-atkSide).length>0;
+  if(atkRem&&defRem){
+    seg.locked=true;
+    for(const p of corps){
+      if(!p.alive||p.r!==r||p.c!==c||U(p).air) continue;
+      if(p.side===atkSide&&atkUnits.includes(p)&&meleeCapable(p)) p.lockAtk=true;
+      else if(p.side!==atkSide&&meleeCapable(p)) p.lockDef=true;
+    }
+  }
+  for(const p of atkUnits) delete p.__crossed;
+  if(!seg.empty){
+    /* 战果记录：冲锋发起位置 vs 结果 */
+    const myLoss=seg.rounds.reduce((s,x)=>s+x.ddmg,0);
+    const foeLoss=seg.rounds.reduce((s,x)=>s+x.admg,0);
+    recordBattle(atkSide,"冲锋",r,c,{myPow:Math.round(seg.Pa),defPow:Math.round(seg.Pd),myLoss,foeLoss,won:!!seg.defDead&&!seg.atkDead,lost:!!seg.atkDead});
+  }
+  checkWin();
+  return seg;
 }
 
 /* ---------------- 移动 ---------------- */
@@ -830,28 +1067,33 @@ function bfsFrom(cp, side, vis){
   }
   return {dist,prev};
 }
-// 是否阻挡通行：己方单位总是可见并阻挡；敌方单位仅"可见"时阻挡（不可见则可能遭遇突袭）
 function blocksMove(r,c,side,vis){
   for(const p of corps){
     if(!p.alive||p.r!==r||p.c!==c) continue;
-    if(p.id===selId && false) continue;
+    if(unitVisibleTo(p,side,vis)) return true;
+  }
+  return false;
+}
+function blockedByUnit(r,c,side,vis){
+  for(const p of corps){
+    if(!p.alive||p.r!==r||p.c!==c) continue;
+    if(p.side===side) return true;
     if(unitVisibleTo(p,side,vis)) return true;
   }
   return false;
 }
 function reconstruct(prev, tr, tc, sr, sc){
-  const path=[]; let cur=[tr,tc];
-  while(!(cur[0]===sr&&cur[1]===sc)){ path.push(cur); cur=prev[cur[0]][cur[1]]; if(!cur) return null; }
+  const path=[]; let cu=[tr,tc];
+  while(!(cu[0]===sr&&cu[1]===sc)){ path.push(cu); cu=prev[cu[0]][cu[1]]; if(!cu) return null; }
   return path.reverse();
 }
 function computeMoveTargets(cp, steps, vis){
   const u=U(cp);
   if(u.air){
-    // 空中：自由飞行，任意方向 2 格内
     const empties=new Map(), corpsCells=new Map();
     for(let dr=-steps;dr<=steps;dr++)for(let dc=-steps;dc<=steps;dc++){
       if(!dr&&!dc) continue;
-      if(Math.abs(dr)+Math.abs(dc)>steps) continue;   // 曼哈顿距离（菱形）
+      if(Math.abs(dr)+Math.abs(dc)>steps) continue;
       const r=cp.r+dr, c=cp.c+dc;
       if(!airStationable(r,c)) continue;
       empties.set(key(r,c), [[r,c]]);
@@ -864,64 +1106,67 @@ function computeMoveTargets(cp, steps, vis){
     if(dist[r][c]>=1 && dist[r][c]<=steps && !blockedByUnit(r,c,cp.side,vis))
       empties.set(key(r,c), reconstruct(prev,r,c,cp.r,cp.c));
   }
-  for(const p of corps){
-    if(!p.alive) continue;
-    const isOwn = p.side===cp.side;
-    if(!isOwn){
-      if(U(p).air) continue;                       // 空中单位不可见、不可攻击
-      if(!unitVisibleTo(p, cp.side, vis)) continue; // 不可见敌军不列为目标（走入才会触发遭遇战）
-      if(cp.type==="scout") continue;               // 侦察兵无法进攻
-    }
-    const k=key(p.r,p.c);
-    if(corpsCells.has(k)){
-      corpsCells.get(k).ids.push(p.id);
-      if(!isOwn) corpsCells.get(k).type="attack";
-      continue;
-    }
-    let best=null;
-    for(const [dr,dc] of DIRS4){
-      const nr=p.r+dr,nc=p.c+dc;
-      if(inMap(nr,nc)&&dist[nr][nc]>=0&&dist[nr][nc]+1<=steps){
-        if(!best||dist[nr][nc]+1<best.length){
-          const base=reconstruct(prev,nr,nc,cp.r,cp.c);
-          if(base) best=base.concat([[p.r,p.c]]);
+  /* 冲锋目标：仅步骑（侦察兵无战斗力），且距离足够 */
+  if(meleeCapable(cp)){
+    for(const p of corps){
+      if(!p.alive) continue;
+      const isOwn = p.side===cp.side;
+      if(!isOwn){
+        if(U(p).air) continue;
+        if(!unitVisibleTo(p, cp.side, vis)) continue;
+      }
+      if(isOwn) continue;                        // 集结用集火/分兵，不做 ally 目标
+      const k=key(p.r,p.c);
+      if(corpsCells.has(k)) continue;
+      let best=null;
+      for(const [dr,dc] of DIRS4){
+        const nr=p.r+dr,nc=p.c+dc;
+        if(inMap(nr,nc)&&dist[nr][nc]>=0&&dist[nr][nc]+1<=steps){
+          if(!best||dist[nr][nc]+1<best.length){
+            const base=reconstruct(prev,nr,nc,cp.r,cp.c);
+            if(base) best=base.concat([[p.r,p.c]]);
+          }
         }
       }
+      if(best) corpsCells.set(k,{ids:[p.id], path:best, type:"attack"});
     }
-    if(best) corpsCells.set(k,{ids:[p.id], path:best, type: isOwn?"ally":"attack"});
   }
   return {empties, corpsCells};
 }
-function blockedByUnit(r,c,side,vis){
-  for(const p of corps){
-    if(!p.alive||p.r!==r||p.c!==c) continue;
-    if(p.side===side) return true;                  // 己方单位阻挡
-    if(unitVisibleTo(p,side,vis)) return true;      // 可见敌军阻挡
-  }
-  return false;
-}
+/*
+ * executeMove：逐格推进。
+ * - 跨过有工事的边 → 该单位本次冲锋战力×0.3，且此后至多再走1格强制停下
+ * - 步数超出正常移速 → 冲锋，下回合只能修整（fatigue=1）
+ * - 进入敌军格 → 触发冲锋战斗并停下
+ */
 function executeMove(cp, path){
-  const rep={ from:[cp.r,cp.c], segs:[], steps:0, fought:false, died:false };
+  const rep={ from:[cp.r,cp.c], segs:[], steps:0, fought:false, died:false, crossedFort:false, charged:false };
   const u=U(cp);
+  cp.resting=false;
+  let crossStop=-1;
   for(const [r,c] of path){
-    rep.steps++;
-    cp.r=r; cp.c=c;
+    if(crossStop===0) break;                       // 过工事强制停止
+    const ek=edgeBetween(cp.r,cp.c,r,c);
+    const crossed = !!(ek && getFort(ek));
+    cp.r=r; cp.c=c; rep.steps++;
+    if(crossed){ rep.crossedFort=true; cp.__crossed=true; crossStop=1; }
+    else if(crossStop>0) crossStop--;
     if(!u.air && groundEnemyAt(r,c,cp.side)){
       rep.fought=true;
-      rep.segs=resolveMelee(cp);
+      rep.segs.push(resolveBattle([cp],r,c));
       break;
     }
   }
-  if(!rep.fought) cp.resting=false;                    // 移动未交战 → 休整解除
-  if(cp.type==="scout" && rep.steps>=3) cp.fatigue=2;  // 侦察兵奔袭3格 → 下回合不能移动
+  cp.moved=true;
+  if(rep.steps>u.move){ cp.fatigue=1; rep.charged=true; }
   if(!cp.alive) rep.died=true;
-  // 空中载具降落自家大本营 → 补充弹药
-  if(cp.alive && u.air && isBase(cp.r,cp.c) && BASES[cp.side][0]===cp.r && BASES[cp.side][1]===cp.c){
-    const before={flare:cp.flare, smoke:cp.smoke, missile:cp.missile};
-    if(u.throwable){ cp.flare=1; cp.smoke=1; }
-    if(u.missile && cp.missile<=0) cp.missile=1;
-    if((u.throwable && (before.flare<1||before.smoke<1)) || (u.missile && before.missile<1))
-      log(`${SIDE_NAME[cp.side]} ${typeName(cp.type)}#${cp.id} 返回大本营完成补给。`, cp.side===0?"red":"blue");
+  delete cp.__crossed;                             // 无论是否交战都清除过工事标记
+  /* 空中单位降落己方大本营 → 补给 */
+  if(cp.alive && u.air && cp.r===BASES[cp.side][0] && cp.c===BASES[cp.side][1]){
+    const needSup=(u.throwable&&(cp.flare<u.flareMax||cp.smoke<u.smokeMax))||(u.bombMax&&cp.bombs<u.bombMax);
+    if(u.throwable){ cp.flare=u.flareMax; cp.smoke=u.smokeMax; }
+    if(u.bombMax) cp.bombs=u.bombMax;
+    if(needSup) log(`${SIDE_NAME[cp.side]} ${unitTag(cp)} 返回大本营完成补给。`, sideLog(cp));
   }
   checkWin();
   return rep;
@@ -931,23 +1176,27 @@ function executeMove(cp, path){
 function hasGround(side){ return corps.some(p=>p.alive && p.side===side && !U(p).air); }
 function checkWin(){
   if(gameOver) return;
-  for(const p of corps){
-    if(!p.alive || U(p).air) continue;               // 需地面兵团占领
-    const [er,ec]=BASES[1-p.side];
-    if(p.r===er && p.c===ec){ gameOver=true; winner=p.side; return; }
-  }
   const g0=hasGround(0), g1=hasGround(1);
-  if(!g0 || !g1){ gameOver=true; winner = g0?0:1; }
+  if(!g0||!g1){ gameOver=true; winner=g0?0:1; }
+}
+/* 大本营占领：非侦察兵地面兵团连续占领至 2 个回合结束点 → 胜利（侦察兵偷家无效） */
+function checkBaseCapture(){
+  if(gameOver) return;
+  for(const s of [0,1]){
+    const [br,bc]=BASES[s];
+    const occ=corps.some(p=>p.alive && p.side!==s && !U(p).air && p.type!=="scout" && p.r===br && p.c===bc);
+    baseHold[s]=occ?baseHold[s]+1:0;
+    if(baseHold[s]>=2){ gameOver=true; winner=1-s; return; }
+  }
 }
 
-/* ---------------- 日志（分方可见：热座下只显示当前行动方的战报） ---------------- */
+/* ---------------- 日志 ---------------- */
 const logEntries=[];
 function log(msg, cls, side){
   cls = cls || "sys";
-  // 可见方：显式指定（null=公开）> 按颜色（红/蓝方的自身行动）> 默认当前行动方
   const sd = side!==undefined ? side : (cls==="red"?0 : cls==="blue"?1 : current);
-  logEntries.push({msg, cls, side:sd});
-  if(logEntries.length>400) logEntries.splice(0, logEntries.length-400);
+  logEntries.push({msg, cls, side:sd, turn:turnNo});
+  if(logEntries.length>600) logEntries.splice(0, logEntries.length-600);
   renderLog();
 }
 function renderLog(){
@@ -958,15 +1207,13 @@ function renderLog(){
   el.scrollTop=el.scrollHeight;
 }
 const posStr = p => `(${p.r+1},${p.c+1})`;
-const corpsLabel = p => `${SIDE_NAME[p.side]}${typeName(p.type)}#${p.id}`;
 
 /* ---------------- 指令 ---------------- */
 function cancelMode(){ mode="idle"; modeData={}; render(); }
 function currentVis(){ return computeVision(current); }
 function startMove(cp){
-  if(cp.fatigue>0 && cp.type==="scout"){ log("⚠ 该侦察兵上回合奔袭3格，本回合不能移动。"); return; }
   const u=U(cp);
-  beginMoveMode(cp, u.move);
+  beginMoveMode(cp, u.charge);
 }
 function beginMoveMode(cp, steps){
   const vis=currentVis();
@@ -980,30 +1227,34 @@ function boardMove(r,c){
   if(modeData.empties && modeData.empties.has(k)) path=modeData.empties.get(k);
   else if(modeData.corpsCells && modeData.corpsCells.has(k)) path=modeData.corpsCells.get(k).path;
   if(!path) return;
-  if(cp.type==="scout" && path.length>=3 && (!modeData.raidOk || modeData.raidCell!==k)){
+  const u=U(cp);
+  if(u.charge>u.move && path.length>u.move && (!modeData.raidOk || modeData.raidCell!==k)){
     modeData.raidOk=true; modeData.raidCell=k;
-    log("⚠ 侦察兵奔袭3格：下个回合将无法移动。请再点一次目标 / 再按 Enter 确认。", cp.side===0?"red":"blue");
+    log(`⚠ 冲锋 ${path.length} 格（超过正常移速 ${u.move} 格）：下回合只能修整。请再点一次目标确认。`, sideLog(cp));
     render(); return;
   }
   const from=[cp.r,cp.c];
   const rep=executeMove(cp,path);
-  acted.add(cp.id); mode="idle"; modeData={};
-  log(`${corpsLabel(cp)} 从(${from[0]+1},${from[1]+1})移动到 ${posStr(cp)}`, cp.side===0?"red":"blue");
+  acted.add(cp.id); mode="idle"; modeData={}; cur=null;
+  log(`${unitTag(cp)} 从(${from[0]+1},${from[1]+1})移动到 ${posStr(cp)}${rep.crossedFort?"（冲过工事，战力×0.3）":""}${rep.charged?"（冲锋！下回合需修整）":""}`, sideLog(cp));
   if(rep.segs.length) showBattleModal(rep.segs);
   afterCommand();
 }
+/* 分兵：仅四邻（曼哈顿）；新军团本回合视为已行动；移动过/冲锋后的单位不能分兵 */
 function startSplit(cp){
   if(cp.troops<6){ log("⚠ 兵力不足：新军团需≥5且原军团至少保留1。"); return; }
+  if(cp.moved){ log("⚠ 本回合已移动过的兵团不能再分兵。"); return; }
+  if(cp.fatigue>0){ log("⚠ 冲锋后需修整，不能分兵（骑兵冲锋后禁止分兵）。"); return; }
+  if(cp.lockAtk||cp.lockDef){ log("⚠ 交战中不能分兵。"); return; }
   mode="split-amount"; modeData={ id:cp.id }; render();
-  setTimeout(()=>{ const el=document.getElementById("splitNum"); if(el) el.focus(); },0);
+  setTimeout(()=>{ const el=document.getElementById("splitNum"); if(el&&el.focus) el.focus(); },0);
 }
 function confirmSplit(){
   const cp=getCorps(modeData.id); if(!cp) return cancelMode();
   const v=parseInt(document.getElementById("splitNum").value,10);
   if(!(v>=5 && v<=cp.troops-1)){ alert(`请输入 5 ~ ${cp.troops-1} 之间的整数`); return; }
   const vis=currentVis(), u=U(cp), spots=[];
-  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
-    if(!dr&&!dc) continue;
+  for(const [dr,dc] of DIRS4){
     const nr=cp.r+dr, nc=cp.c+dc;
     const ok = u.air ? airStationable(nr,nc) : stationable(nr,nc);
     if(ok && !blockedByUnit(nr,nc,cp.side,vis)) spots.push([nr,nc]);
@@ -1017,12 +1268,12 @@ function boardSplitPlace(r,c){
   if(!modeData.spots.has(key(r,c))) return;
   const u=U(cp);
   const nc={ id:nextId++, side:cp.side, type:cp.type, troops:modeData.n, r, c,
-             resting:false, fatigue:0, alive:true, acc:0, dur:u.dur||0,
-             flare:0, smoke:0, missile:0, ammo:false };
+             resting:false, fatigue:0, alive:true, moved:true, lockAtk:false, lockDef:false,
+             dur:u.dur||0, flare:0, smoke:0, bombs:0, ammo:false };
   corps.push(nc); cp.troops-=modeData.n;
-  log(`${corpsLabel(cp)} 分兵 → 新建 ${typeName(nc.type)}#${nc.id}(x${nc.troops}) 于 (${r+1},${c+1})`,
-      cp.side===0?"red":"blue");
-  acted.add(cp.id); mode="idle"; modeData={}; afterCommand();
+  acted.add(cp.id); acted.add(nc.id);            // 新军团本回合视为已行动，不能再走
+  log(`${unitTag(cp)} 分兵 → 新建 ${unitTag(nc)}(x${nc.troops})，新军团本回合已行动`, sideLog(cp));
+  mode="idle"; modeData={}; afterCommand();
 }
 function mergeCandidates(cp){
   return corps.filter(o=>o.alive&&o.side===cp.side&&o.type===cp.type&&o.id!==cp.id&&manh(o,cp)<=1);
@@ -1037,18 +1288,45 @@ function doMerge(idx){
   const t=getCorps(modeData.cands[idx]); if(!t||!t.alive) return cancelMode();
   const a=cp.troops, b=t.troops;
   t.troops=a+b;
-  if(U(t).dur) t.dur=Math.max(t.dur, cp.dur);       // 合并取较高耐久
-  log(`${corpsLabel(cp)}(x${a}) 并入 #${t.id}(x${b})，合并后 ${t.troops}`, cp.side===0?"red":"blue");
+  if(U(t).dur) t.dur=Math.max(t.dur,cp.dur);
+  t.ammo=t.ammo||cp.ammo;
+  t.flare=Math.min((U(t).flareMax||0), (t.flare||0)+(cp.flare||0));
+  t.smoke=Math.min((U(t).smokeMax||0), (t.smoke||0)+(cp.smoke||0));
+  t.bombs=Math.min((U(t).bombMax||0), (t.bombs||0)+(cp.bombs||0));
+  log(`${unitTag(cp)}(x${a}) 并入 ${unitTag(t)}(x${b})，合并后 ${t.troops}`, sideLog(cp));
   death(cp); acted.add(cp.id); selId=t.id; mode="idle"; modeData={};
   afterCommand();
 }
 function doRest(cp){
   if(!U(cp).canRest){ log(`⚠ ${typeName(cp.type)}没有休整状态。`); return; }
-  cp.resting=!cp.resting;
-  log(`${corpsLabel(cp)} ${cp.resting?"进入":"解除"}休整状态`, cp.side===0?"red":"blue");
+  if(cp.fatigue>0){
+    cp.resting=true; cp.fatigue=0;
+    log(`${unitTag(cp)} 修整完成（解除冲锋疲劳）。`, sideLog(cp));
+  } else {
+    cp.resting=!cp.resting;
+    log(`${unitTag(cp)} ${cp.resting?"进入":"解除"}休整状态`, sideLog(cp));
+  }
   acted.add(cp.id); mode="idle"; modeData={}; afterCommand();
 }
-// 打击目标：射程内按曼哈顿距离（菱形）计算，允许盲打（无需视野）
+function strikeRange(p){
+  const u=U(p);
+  if(p.type==="katyusha") return p.resting?u.restRange:u.range;
+  if(u.needRest) return u.range;
+  return p.resting&&u.restRange ? u.restRange : u.range;
+}
+function canStrike(p){
+  const u=U(p);
+  if(!u.ranged) return false;
+  if(u.needRest && !p.resting) return false;
+  if(u.ammo && !p.ammo) return false;
+  return true;
+}
+function strikeHint(p){
+  const u=U(p);
+  if(u.needRest && !p.resting) return "重炮兵须先修整一回合才能打击。";
+  if(u.ammo && !p.ammo) return "喀秋莎尚未装填弹药，需先执行「装填弹药」。";
+  return "";
+}
 function strikeCells(cp){
   const range=strikeRange(cp), out=new Set();
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){
@@ -1063,7 +1341,6 @@ function startStrike(cp){
   if(!cells.size){ log("⚠ 射程内没有可打击的格子。"); return; }
   mode="strike"; modeData={ id:cp.id, cells }; render();
 }
-// 某格在 side 视野内可见的敌方地面兵团
 function visibleFoesAt(side, r, c, vis){
   return corps.filter(p=>p.alive && p.side!==side && p.r===r && p.c===c && !U(p).air && unitVisibleTo(p,side,vis));
 }
@@ -1071,25 +1348,19 @@ function boardStrike(r,c){
   const cp=getCorps(modeData.id); if(!cp) return cancelMode();
   if(!modeData.cells.has(key(r,c))) return;
   const vis=currentVis();
-  // 打击范围：定点=1格，喀秋莎=以落点为中心的3×3
   const hitCells=[];
   for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
     const rr=r+dr, cc=c+dc;
     if(!inMap(rr,cc)) continue;
-    if(cp.type!=="katyusha" && (dr||dc)) continue;
-    hitCells.push([rr,cc]);
+    if(U(cp).area||(dr===0&&dc===0)) hitCells.push([rr,cc]);
   }
-  // 打击前记录可见敌军的规模档位（用于展示"规模是否变化"）
   const before=new Map();
   for(const [rr,cc] of hitCells){
     const f=visibleFoesAt(cp.side,rr,cc,vis);
     if(f.length) before.set(key(rr,cc), enemySizeClass(f));
   }
-  let rep;
-  if(cp.type==="katyusha") rep=katyushaStrike(cp,r,c);
-  else rep=strikeCell(cp,r,c, cp.troops*strikeBase(cp));
-  if(cp.type==="katyusha") cp.ammo=false;           // 装填消耗
-  // 战果汇总（脱敏：只报消灭人数 / 载具损耗 / 规模变化，不报兵种与剩余兵力）
+  const rep = U(cp).area ? performKatyusha(cp,r,c) : performStrike(cp,r,c);
+  /* 战果汇总（脱敏：只报消灭人数 / 载具耐久损耗 / 规模变化） */
   let total=0, vehLost=0, vehDead=0;
   const lines=[], sizeChanges=[];
   for(const cell of rep.cells){
@@ -1097,54 +1368,63 @@ function boardStrike(r,c){
     const beforeSize=before.get(k);
     const foesAfter=visibleFoesAt(cp.side,cell.r,cell.c,vis);
     const afterSize=foesAfter.length?enemySizeClass(foesAfter):null;
-    const kills=cell.hits.reduce((s,h)=>s+h.real,0);
+    const kills=cell.hits.reduce((s,h)=>s+h.killed,0);
     total+=kills;
-    vehLost+=cell.hits.filter(h=>h.vehLost).length;
-    vehDead+=cell.hits.filter(h=>h.vehDead).length;
+    vehLost+=cell.hits.filter(h=>h.durLost>0).length;
+    vehDead+=cell.hits.filter(h=>h.dead).length;
     if(beforeSize && afterSize!==beforeSize)
       sizeChanges.push(`(${cell.r+1},${cell.c+1}) ${beforeSize}→${afterSize||"已歼灭"}`);
-    if(!beforeSize && !cell.hits.length) continue;   // 无目标、无情报 → 不显示该格
+    if(!beforeSize && !cell.hits.length) continue;
     let s=`(${cell.r+1},${cell.c+1})：`;
     if(cell.hits.length) s+=`消灭 ${kills} 人`;
     else s+=`未取得战果`;
-    if(vehLost) s+=`，载具受损${vehDead?"并被击毁":""}`;
+    if(cell.hits.some(h=>h.durLost>0)) s+=`，载具受损${cell.hits.some(h=>h.dead)?"并被击毁":""}`;
     if(beforeSize) s+=` · 敌方规模 ${beforeSize} → ${afterSize||"已歼灭"}`;
     lines.push(s);
   }
-  log(`🎯 ${corpsLabel(cp)} 打击 (${r+1},${c+1})${rep.area?"[3×3面杀伤]":""}：消灭 ${total} 人`
+  log(`🎯 ${unitTag(cp)} 打击 (${r+1},${c+1})${rep.area?"[3×3面杀伤]":""}：消灭 ${total} 人`
       + (vehLost?`，载具受损${vehLost}次${vehDead?"（击毁"+vehDead+"辆）":""}`:"")
       + (sizeChanges.length?`，敌方规模 ${sizeChanges.join("、")}`:"")
-      + (rep.fort?`，摧毁防御工事${rep.fort}座`:"")
-      + (rep.bunker?`，命中防空地堡${rep.bunker}次${rep.bunkerDead?"（已失效）":""}`:"")
-      + (!total&&!rep.fort&&!rep.bunker?"，未取得战果":"") , cp.side===0?"red":"blue");
-  baseRadar(cp, rep.cells.map(x=>[x.r,x.c]));
+      + (rep.forts.length?`，摧毁防御工事${rep.forts.length}段`:"")
+      + (rep.bunk?`，命中防空地堡${rep.bunk}次${rep.bunkDead?"（已失效）":""}`:"")
+      + (!total&&!rep.forts.length&&!rep.bunk?"，未取得战果":""), sideLog(cp));
   showStrikeModal(cp,rep,lines,total,vehLost,vehDead);
   checkWin();
-  acted.add(cp.id); mode="idle"; modeData={};
+  acted.add(cp.id); mode="idle"; modeData={}; cur=null;
   afterCommand();
 }
+/* 装填弹药：装好后移动不掉弹；已装填则不再重复装填 */
+function doLoad(cp){
+  if(cp.ammo){ log(`⚠ ${unitTag(cp)} 弹药已装填完毕，无需重复装填。`, sideLog(cp)); return; }
+  cp.ammo=true;
+  log(`${unitTag(cp)} 完成弹药装填，移动后也无需再装。`, sideLog(cp));
+  acted.add(cp.id); mode="idle"; modeData={}; afterCommand();
+}
+/* ---- 工事（格间边）---- */
 function buildCells(cp){
   const out=new Set();
-  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
-    if(!dr&&!dc) continue;
+  for(const [dr,dc] of DIRS4){
     const r=cp.r+dr,c=cp.c+dc;
-    if(stationable(r,c) && !fort[r][c]) out.add(key(r,c));
+    if(stationable(r,c)){
+      const ek=edgeBetween(cp.r,cp.c,r,c);
+      if(ek && !getFort(ek)) out.add(key(r,c));
+    }
   }
   return out;
 }
 function fortCells(cp){
   const out=new Set();
-  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
-    if(!dr&&!dc) continue;
+  for(const [dr,dc] of DIRS4){
     const r=cp.r+dr,c=cp.c+dc;
-    if(inMap(r,c) && fort[r][c]) out.add(key(r,c));
+    const ek=edgeBetween(cp.r,cp.c,r,c);
+    if(ek && getFort(ek)) out.add(key(r,c));
   }
   return out;
 }
 function startBuild(cp){
   if(!cp.resting){ log("⚠ 步兵必须休整才能修筑工事。"); return; }
   const s=buildCells(cp);
-  if(!s.size){ log("⚠ 周围没有可修筑工事的格子。"); return; }
+  if(!s.size){ log("⚠ 周围没有可修筑工事的格间。"); return; }
   mode="build"; modeData={ id:cp.id, cells:s }; render();
 }
 function startDestroy(cp){
@@ -1158,6 +1438,14 @@ function startDemolish(cp){
   if(!s.size){ log("⚠ 周围没有可拆毁的防御工事。"); return; }
   mode="demolish"; modeData={ id:cp.id, cells:s }; render();
 }
+function doDemolish50(cp){
+  let n=0;
+  for(const ek of edgesTouching(cp.r,cp.c)) if(getFort(ek)){ setFort(ek,false); n++; }
+  let b=false;
+  if(bunker[cp.r][cp.c]>0){ bunker[cp.r][cp.c]=0; bunkerDead[cp.r][cp.c]=true; b=true; }
+  log(`${unitTag(cp)}（${cp.troops}人）直接拆除相邻工事${n}段${b?"与所在格防空地堡":""}`, sideLog(cp));
+  acted.add(cp.id); mode="idle"; modeData={}; afterCommand();
+}
 function startBunker(cp){
   if(!cp.resting){ log("⚠ 步兵必须休整才能修筑防空地堡。"); return; }
   if(bunker[cp.r][cp.c]>0){ log("⚠ 本格已有防空地堡。"); return; }
@@ -1166,99 +1454,199 @@ function startBunker(cp){
 }
 function boardBunker(r,c){
   const cp=getCorps(modeData.id); if(!cp) return cancelMode();
-  if(cp.r!==r || cp.c!==c) return;                  // 只能在自身格修筑
+  if(cp.r!==r || cp.c!==c) return;
   bunker[cp.r][cp.c]=3;
-  log(`${corpsLabel(cp)} 在 ${posStr(cp)} 修筑防空地堡（3点耐久）`, cp.side===0?"red":"blue");
+  log(`${unitTag(cp)} 在 ${posStr(cp)} 修筑防空地堡（3点耐久）`, sideLog(cp));
   acted.add(cp.id); mode="idle"; modeData={}; afterCommand();
 }
 function boardFortOp(r,c){
   const cp=getCorps(modeData.id); if(!cp) return cancelMode();
   if(!modeData.cells.has(key(r,c))) return;
-  const isBuild = (mode==="build");
-  fort[r][c]=isBuild;
-  log(`${corpsLabel(cp)} ${isBuild?"修筑":"摧毁"}了 (${r+1},${c+1}) ${isBuild?"防御工事":"的防御工事"}`,
-      cp.side===0?"red":"blue");
+  if(mode==="build"){
+    const ek=edgeBetween(cp.r,cp.c,r,c);
+    if(!ek) return;
+    setFort(ek,true);
+    log(`${unitTag(cp)} 修筑了 (${cp.r+1},${cp.c+1})—(${r+1},${c+1}) 之间的防御工事`, sideLog(cp));
+  } else {
+    const ek=edgeBetween(cp.r,cp.c,r,c);
+    if(!ek||!getFort(ek)) return;
+    setFort(ek,false);
+    log(`${unitTag(cp)} ${mode==="destroy"?"摧毁":"拆毁"}了 (${cp.r+1},${cp.c+1})—(${r+1},${c+1}) 之间的防御工事`, sideLog(cp));
+  }
   acted.add(cp.id); mode="idle"; modeData={}; afterCommand();
 }
+/* ---- 投掷（照明/烟幕，支持一次多枚） ---- */
 function throwCells(cp){
   const vis=currentVis(), out=new Set();
-  for(const k of vis){ const p=unkey(k); if(manh(p,cp)<=visionRange(cp)) out.add(k); }
+  for(const k of vis){ const p=unkey(k); if(manh(p,cp)<=U(cp).throwRange) out.add(k); }
   return out;
 }
 function startThrow(cp, kind){
   const u=U(cp);
-  if(!u.throwable){ return; }
-  if(kind==="flare" && cp.flare<=0){ log("⚠ 照明弹已用尽（需飞回大本营补给）。"); return; }
-  if(kind==="smoke" && cp.smoke<=0){ log("⚠ 烟雾弹已用尽（需飞回大本营补给）。"); return; }
+  if(!u.throwable) return;
+  if(kind==="flare" && cp.flare<=0){ log("⚠ 照明弹已用尽（回己方大本营补给）。"); return; }
+  if(kind==="smoke" && cp.smoke<=0){ log("⚠ 烟雾弹已用尽（回己方大本营补给）。"); return; }
   const cells=throwCells(cp);
-  if(!cells.size){ log("⚠ 视野范围内没有可投掷的格子。"); return; }
-  mode=kind; modeData={ id:cp.id, cells }; render();
+  if(!cells.size){ log("⚠ 投程内没有可投掷的格子。"); return; }
+  mode=kind; modeData={ id:cp.id, cells, picked:[] }; render();
 }
 function boardThrow(r,c){
   const cp=getCorps(modeData.id); if(!cp) return cancelMode();
-  if(!modeData.cells.has(key(r,c))) return;
+  const k=key(r,c);
+  if(!modeData.cells.has(k)) return;
+  if(modeData.picked.some(p=>p.r===r&&p.c===c)){
+    modeData.picked=modeData.picked.filter(p=>!(p.r===r&&p.c===c));
+    render(); return;
+  }
+  const max = mode==="flare" ? cp.flare : cp.smoke;
+  if(modeData.picked.length>=max){ log(`⚠ 弹药不足（剩余 ${max} 枚）。`); return; }
+  modeData.picked.push({r,c});
+  render();
+}
+function confirmThrow(){
+  const cp=getCorps(modeData.id); if(!cp) return cancelMode();
+  if(!modeData.picked.length){ log("⚠ 请先选择至少一个投掷点（再点一次可取消选择）。"); return; }
   const kind=mode;
-  if(kind==="flare"){
-    cp.flare--;
-    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
-      const rr=r+dr,cc=c+dc; if(inMap(rr,cc)) flare[rr][cc]=5;
+  for(const {r,c} of modeData.picked){
+    if(kind==="flare"){
+      cp.flare--;
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+        const rr=r+dr,cc=c+dc; if(inMap(rr,cc)) flare[rr][cc]=5;
+      }
+    } else {
+      cp.smoke--;
+      const id=smokeSeq++;
+      for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+        const rr=r+dr,cc=c+dc; if(inMap(rr,cc)){ smokeLeft[rr][cc]=5; smokeId[rr][cc]=id; }
+      }
     }
-    log(`${corpsLabel(cp)} 投掷照明弹 → (${r+1},${c+1})，3×3 照明区持续5回合（区内兵团全图可见）`, cp.side===0?"red":"blue");
-  } else {
-    cp.smoke--;
-    const id=smokeSeq++;
-    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
-      const rr=r+dr,cc=c+dc; if(inMap(rr,cc)){ smokeLeft[rr][cc]=5; smokeId[rr][cc]=id; }
-    }
-    log(`${corpsLabel(cp)} 投掷烟雾弹 → (${r+1},${c+1})，3×3 烟幕持续5回合（区外无法窥视）`, cp.side===0?"red":"blue");
+    log(`${unitTag(cp)} 投掷${kind==="flare"?"照明弹":"烟雾弹"} → (${r+1},${c+1})，3×3 区域持续5回合${kind==="flare"?"（照明区双方可见）":""}`, sideLog(cp));
   }
-  acted.add(cp.id); mode="idle"; modeData={}; afterCommand();
+  acted.add(cp.id); mode="idle"; modeData={}; cur=null; afterCommand();
 }
-function startMissile(cp){
-  if(cp.type!=="bomber"){ return; }
-  if(cp.missile<=0){ log("⚠ 轰炸机没有导弹（飞回大本营可补充）。"); return; }
+/* ---- 轰炸机投弹 ---- */
+function bombCells(cp){
   const out=new Set();
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
-    if(manh({r,c},cp)<=visionRange(cp)) out.add(key(r,c));
+  for(let dr=-U(cp).bombRange;dr<=U(cp).bombRange;dr++)for(let dc=-U(cp).bombRange;dc<=U(cp).bombRange;dc++){
+    if(!dr&&!dc) continue;
+    const r=cp.r+dr,c=cp.c+dc;
+    if(inMap(r,c)) out.add(key(r,c));
   }
-  if(!out.size){ log("⚠ 射程内没有可打击的格子。"); return; }
-  mode="missile"; modeData={ id:cp.id, cells:out }; render();
+  return out;
 }
-function boardMissile(r,c){
+function startBomb(cp){
+  if(cp.bombs<=0){ log("⚠ 轰炸机弹药已用尽（回己方大本营补给）。"); return; }
+  const cells=bombCells(cp);
+  if(!cells.size){ log("⚠ 轰炸范围内没有格子。"); return; }
+  mode="bomb"; modeData={ id:cp.id, cells }; render();
+}
+function boardBomb(r,c){
   const cp=getCorps(modeData.id); if(!cp) return cancelMode();
   if(!modeData.cells.has(key(r,c))) return;
-  cp.missile--;
-  pendingMissiles.push({ r, c, side:cp.side, shooterId:cp.id });
-  log(`🚀 ${corpsLabel(cp)} 向 (${r+1},${c+1}) 发射导弹，将于下一回合命中！`, cp.side===0?"red":"blue");
-  acted.add(cp.id); mode="idle"; modeData={}; afterCommand();
-}
-function resolveMissiles(){
-  if(!pendingMissiles.length) return;
-  const list=pendingMissiles.slice(); pendingMissiles=[];
-  for(const ms of list){
-    const {r,c,side}=ms;
-    let mult=1, bunkerHit=false, bunkerKilled=false;
-    if(fort[r][c]) fort[r][c]=false;
-    if(bunker[r][c]>0){
-      bunker[r][c]--; bunkerHit=true; mult=0.5;
-      if(bunker[r][c]===0){ bunkerDead[r][c]=true; bunkerKilled=true; }
-    }
-    const targets=corps.filter(t=>t.alive && t.r===r && t.c===c && !U(t).air);
-    if(!targets.length){
-      log(`🚀 导弹命中 (${r+1},${c+1})，该格已空无一人。`, "warn", side);
-      continue;
-    }
-    if(mult===1){
-      for(const t of targets) death(t);
-      log(`💥 导弹命中 (${r+1},${c+1})，该格 ${targets.length} 支兵团被<b>全歼</b>！`, "warn", side);
-    } else {
-      for(const t of targets){ t.troops=Math.max(0, t.troops-Math.round(t.troops*0.5)); if(t.troops<=0) death(t); }
-      log(`💥 导弹命中 (${r+1},${c+1})，防空地堡拦截，敌方损耗减半${bunkerKilled?"，地堡已失效":""}。`, "warn", side);
-    }
-    baseRadar(getCorps(ms.shooterId), [[r,c]]);
-    if(bunkerHit && !bunkerKilled) log(`🛡 防空地堡承受打击，剩余耐久 ${bunker[r][c]}/3。`, "warn", 1-side);
+  const rep=performBomb(cp,r,c);
+  let kills=0, vehLost=0, vehDead=0;
+  for(const cell of rep.cells){
+    kills+=cell.hits.reduce((s,h)=>s+h.killed,0);
+    vehLost+=cell.hits.filter(h=>h.durLost>0).length;
+    vehDead+=cell.hits.filter(h=>h.dead).length;
   }
+  log(`💥 ${unitTag(cp)} 轰炸 (${r+1},${c+1})：消灭 ${kills} 人`
+      + (vehLost?`，载具受损${vehLost}次${vehDead?"（击毁"+vehDead+"辆）":""}`:"")
+      + (rep.forts.length?`，摧毁工事${rep.forts.length}段`:"")
+      + (rep.bunk?`，命中防空地堡${rep.bunk}次${rep.bunkDead?"（已失效）":""}`:"")
+      + (!kills&&!vehLost&&!rep.bunk?"，未取得战果":""), sideLog(cp));
+  showStrikeModal(cp,rep,[`(${r+1},${c+1})：消灭 ${kills} 人`],kills,vehLost,vehDead);
   checkWin();
+  acted.add(cp.id); mode="idle"; modeData={}; cur=null;
+  afterCommand();
+}
+/* ---- 战斗（共格肉搏发起） ---- */
+function startFight(cp){
+  if(!coLocatedEnemy(cp)){ log("⚠ 本格没有敌军，无需战斗。"); return; }
+  const allies=infCavAt(cp.r,cp.c,cp.side).filter(q=>!acted.has(q.id));
+  if(!allies.length){ log("⚠ 己方参战单位本回合均已行动。"); return; }
+  const seg=resolveBattle(allies,cp.r,cp.c);
+  for(const p of allies) acted.add(p.id);
+  log(`${unitTag(cp)} 发起战斗（${seg.rounds.length||1}轮）`, sideLog(cp));
+  showBattleModal([seg]);
+  afterCommand();
+}
+/* ---- 集火（集体冲锋） ---- */
+function chargeEligible(p, initSide){
+  return p.alive && p.side===initSide && meleeCapable(p) && !acted.has(p.id) &&
+         p.fatigue<=0 && !(p.lockAtk&&coLocatedEnemy(p));
+}
+function startGroupCharge(cp){
+  if(!meleeCapable(cp)){ log("⚠ 只有步兵和骑兵可以发起集体冲锋。"); return; }
+  if(cp.fatigue>0){ log("⚠ 冲锋后需修整，本回合不能行动。"); return; }
+  if(cp.lockAtk&&coLocatedEnemy(cp)){ log("⚠ 交战锁定中，请使用「战斗」。"); return; }
+  const vis=currentVis();
+  const mt=computeMoveTargets(cp, U(cp).charge, vis);
+  const cells=new Set([...mt.empties.keys(), ...mt.corpsCells.keys()]);
+  if(!cells.size){ log("⚠ 冲锋范围内没有可达格子。"); return; }
+  mode="charge"; modeData={ id:cp.id, cells, vis }; render();
+}
+function boardChargeTarget(r,c){
+  const cp=getCorps(modeData.id); if(!cp) return cancelMode();
+  if(!modeData.cells.has(key(r,c))) return;
+  const vis=modeData.vis||currentVis();
+  const parts=[cp.id];
+  for(const p of corps){
+    if(p.id===cp.id) continue;
+    if(!chargeEligible(p, cp.side)) continue;
+    const mt=computeMoveTargets(p, U(p).charge, vis);
+    if(mt.empties.has(key(r,c))||mt.corpsCells.has(key(r,c))) parts.push(p.id);
+  }
+  if(parts.length<1){ log("⚠ 没有可参战的单位。"); return; }
+  mode="charge-go"; modeData={ target:[r,c], ids:parts }; render();
+}
+/* 集火执行核心（UI 与 AI 共用）：静默推进所有参战者 → 一次集体冲锋结算 */
+function performGroupCharge(initSide, r, c, ids){
+  const arrived=[], movedLogs=[];
+  for(const id of ids){
+    const p=getCorps(id);
+    if(!p||!p.alive||!chargeEligible(p,initSide)) continue;
+    if(p.r===r&&p.c===c){ arrived.push(p); acted.add(p.id); continue; }
+    const vis=computeVision(initSide);
+    const mt=computeMoveTargets(p, U(p).charge, vis);
+    const k=key(r,c);
+    let path=mt.empties.has(k)?mt.empties.get(k):(mt.corpsCells.get(k)||{}).path;
+    if(!path) continue;
+    /* 中途有敌军（目标格本身除外）→ 该单位放弃参战（停在原地，不移动） */
+    if(path.slice(0,-1).some(([pr,pc])=>groundEnemyAt(pr,pc,p.side))) continue;
+    /* 过工事强制停止：截断为"过边后再走1格" */
+    let stop=path.length, crossed=false, sinceCross=0;
+    let pr0=p.r, pc0=p.c;
+    for(let i=0;i<path.length;i++){
+      const ek=edgeBetween(pr0,pc0,path[i][0],path[i][1]);
+      const cr = !!(ek&&getFort(ek));
+      if(cr){ crossed=true; sinceCross=1; }
+      else if(crossed){ sinceCross++; if(sinceCross>1){ stop=i; break; } }
+      pr0=path[i][0]; pc0=path[i][1];
+    }
+    if(stop<path.length) path=path.slice(0,stop);
+    const startR=p.r, startC=p.c;
+    p.resting=false; p.moved=true;
+    p.r=r; p.c=c;
+    if(crossed) p.__crossed=true;
+    if(path.length>U(p).move) p.fatigue=1;
+    if(!(startR===r&&startC===c)) movedLogs.push(`${unitTag({type:p.type,r:startR,c:startC})} → (${r+1},${c+1})${crossed?"(过工事)":""}`);
+    arrived.push(p); acted.add(p.id);
+  }
+  const foes=corps.some(p=>p.alive&&p.side!==initSide&&p.r===r&&p.c===c&&!U(p).air);
+  let seg=null;
+  if(foes&&arrived.some(p=>meleeCapable(p))) seg=resolveBattle(arrived,r,c);
+  else for(const p of arrived) delete p.__crossed;   // 无交战则清除过工事标记
+  return { arrived, seg, movedLogs };
+}
+function confirmCharge(){
+  const init=getCorps(modeData.ids[0]); if(!init) return cancelMode();
+  const [r,c]=modeData.target;
+  const res=performGroupCharge(init.side, r, c, modeData.ids);
+  log(`🎺 集体冲锋 → (${r+1},${c+1})：${res.arrived.length} 支兵团参战${res.movedLogs.length?("（"+res.movedLogs.slice(0,6).join("；")+(res.movedLogs.length>6?"…":"")+"）"):""}`, sideLog(init));
+  mode="idle"; modeData={}; cur=null;
+  if(res.seg) showBattleModal([res.seg]);
+  afterCommand();
 }
 function afterCommand(){ render(); if(gameOver && !victoryShown) showVictory(); }
 
@@ -1266,25 +1654,30 @@ function afterCommand(){ render(); if(gameOver && !victoryShown) showVictory(); 
 function endTurn(){
   if(gameOver || phase!=="play") return;
   cancelMode();
-  for(const p of corps) if(p.alive && p.side===current && p.fatigue>0) p.fatigue--;
   checkWin();
   if(gameOver){ render(); if(!victoryShown) showVictory(); return; }
   log(`—— ${SIDE_NAME[current]} 回合结束 ——`);
+  updateExposure();                                 // 战术分析：记录各单位暴露于敌方视野的事件
   current = 1-current;
   if(current===0){
     const wasDay=isDay();
     turnNo++;
     onNewRound(wasDay);
+    checkBaseCapture();
+    takeSnapshot();
     if(gameOver){ render(); if(!victoryShown) showVictory(); return; }
   }
   acted.clear(); selId=null; mode="idle"; modeData={};
   log(`轮到 ${SIDE_NAME[current]} 行动（第 ${turnNo} 回合）`);
   render();
-  if(!gameOver && aiSide===current) runAiTurn();   // 轮到 AI：启动 AI 回合
+  if(!gameOver && aiSide===current) runAiTurn();
 }
 function onNewRound(wasDay){
-  resolveMissiles();
-  // 照明弹/烟幕计时
+  for(const p of corps){
+    if(p.moved) p.moved=false;
+    if(p.lockAtk && !coLocatedEnemy(p)) p.lockAtk=false;
+    if(p.lockDef && !coLocatedEnemy(p)) p.lockDef=false;
+  }
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){
     if(flare[r][c]>0) flare[r][c]--;
     if(smokeLeft[r][c]>0) smokeLeft[r][c]--;
@@ -1295,16 +1688,261 @@ function onNewRound(wasDay){
   }
 }
 
-/* ---------------- 单机 AI 对手 ----------------
-   决策逻辑移植自 sim-game-v3.js actSide（40 局 AI vs AI 验证无异常），
-   在此基础上按难度分级：行动概率 / 目标智能 / 部署配置 / 思考节奏。 */
+/* ---------------- 战役复盘（逐回合快照） ---------------- */
+function takeSnapshot(){
+  if(phase!=="play" && battleRecord.length===0 && !(gameOver)) { /* deploy 阶段不记录 */ }
+  if(!corps.length && !battleRecord.length) return;
+  battleRecord.push({
+    turn: turnNo, day: isDay(),
+    corps: corps.filter(p=>p.alive).map(p=>({s:p.side,t:p.type,n:p.troops,r:p.r,c:p.c,
+      rest:p.resting?1:0,d:p.dur||0,a:p.ammo?1:0,f:p.flare||0,sm:p.smoke||0,b:p.bombs||0})),
+    fh: fortH.map(r=>r.slice()), fv: fortV.map(r=>r.slice()),
+    bk: bunker.map(r=>r.slice()), fl: flare.map(r=>r.slice()), sm: smokeLeft.map(r=>r.slice()),
+    winner: gameOver?winner:undefined,
+  });
+  const rb=document.getElementById("replayBtn"); if(rb) rb.disabled=false;
+}
+let rpIdx=0;
+function showReplay(){
+  if(!battleRecord.length){ log("暂无可复盘的战斗记录。"); return; }
+  rpIdx=battleRecord.length-1;
+  renderReplay();
+}
+function renderReplay(){
+  const snap=battleRecord[rpIdx];
+  const T2=T_NAME;
+  let cells="";
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const t=snap.fh? (terrain[r][c]) : "plain";
+    let bg = t==="plain"?"#69b96e":t==="highland"?"#e8ebf0":t==="river"?"#4d9de8":"#e65352";
+    if(snap.bridge&&snap.bridge[r][c]) bg="repeating-linear-gradient(45deg,#ffd54f,#ffd54f 3px,#f0b429 3px,#f0b429 6px)";
+    let style=`background:${bg};`;
+    if(snap.fl&&snap.fl[r][c]>0) style+="box-shadow:inset 0 0 0 2px rgba(255,214,0,.8);";
+    else if(snap.sm&&snap.sm[r][c]>0) style+="box-shadow:inset 0 0 0 2px rgba(84,110,122,.9);";
+    let inner="";
+    if(snap.fh&&snap.fh[r][c]) inner+=`<span class="rp-fe" style="right:-1px;top:25%;width:3px;height:50%"></span>`;
+    if(snap.fv&&snap.fv[r][c]) inner+=`<span class="rp-fe" style="bottom:-1px;left:25%;height:3px;width:50%"></span>`;
+    if(isBase(r,c)) inner+=`<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:#37474f;font-weight:800;z-index:1">营</span>`;
+    if(snap.bk&&snap.bk[r][c]>0) inner+=`<span style="position:absolute;left:0;top:0;width:6px;height:6px;background:#00695c;border-radius:1px;z-index:1"></span>`;
+    for(const p of snap.corps){
+      if(p.r===r&&p.c===c){
+        const col=p.s===0?"#c62828":"#1565c0";
+        const air=UNITS[p.t].air?" dashed":"";
+        inner+=`<span class="rp-u" style="background:${col};border:1px${air} solid #fff">${UNITS[p.t].ch}${p.n>1?"·"+p.n:""}</span>`;
+      }
+    }
+    cells+=`<div class="rp-cell" style="${style}">${inner}</div>`;
+  }
+  const logs=logEntries.filter(e=>e.turn===snap.turn&&e.side==null);
+  let logHtml=logs.map(e=>`<div class="entry ${e.cls}">${e.msg}</div>`).join("") || `<div style="color:#90a4ae">（本回合无公开战报）</div>`;
+  modalShow(`<h2>📼 战役复盘 · 第 ${rpIdx+1}/${battleRecord.length} 个快照（第 ${snap.turn} 回合 · ${snap.day?"白天":"夜晚"}）</h2>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <button class="btn small" data-action="rp-prev" ${rpIdx===0?"disabled":""}>◀ 上一快照</button>
+      <button class="btn small" data-action="rp-next" ${rpIdx===battleRecord.length-1?"disabled":""}>下一快照 ▶</button>
+      <span style="color:#607d8b;font-size:12px">快照含双方完整信息（复盘专属）</span>
+      ${snap.winner!==undefined?`<span style="font-weight:800;color:${snap.winner===0?"#c62828":"#1565c0"}">🏆 ${SIDE_NAME[snap.winner]}获胜</span>`:""}
+    </div>
+    <div class="rp-board">${cells}</div>
+    <div class="rp-log">${logHtml}</div>
+    <div style="text-align:center;margin-top:8px"><button class="btn primary" data-action="close-modal">关闭</button></div>`);
+}
+function stepReplay(d){
+  rpIdx=Math.max(0,Math.min(battleRecord.length-1,rpIdx+d));
+  renderReplay();
+}
+
+/* ---------------- 单机 AI（v3.8 重制：进攻性 + 60回合指标） ---------------- */
 const AI_PROFILES = {
-  easy:   { label:"简单", restP:.20, loadP:.45, strikeP:.30, throwP:.12, missileP:.20, buildP:.32, splitP:.03, aimP:.30, delay:340 },
-  medium: { label:"中等", restP:.10, loadP:.60, strikeP:.50, throwP:.18, missileP:.35, buildP:.25, splitP:.05, aimP:.60, delay:220 },
-  hard:   { label:"困难", restP:.04, loadP:.90, strikeP:.85, throwP:.22, missileP:.55, buildP:.12, splitP:.04, aimP:.95, delay:130 },
+  easy:   { label:"简单", restP:.25, buildP:.25, aimP:.60, atkNeed:1.65, strikeP:.50, throwP:.15, bombP:.60, blindP:.25, delay:340, allInTurn:60, targetRounds:100 },
+  medium: { label:"中等", restP:.12, buildP:.15, aimP:.85, atkNeed:1.05, strikeP:.80, throwP:.25, bombP:.85, blindP:.10, delay:220, allInTurn:40, targetRounds:80 },
+  hard:   { label:"困难", restP:.05, buildP:.06, aimP:.96, atkNeed:1.10, strikeP:.92, throwP:.30, bombP:.95, blindP:.05, delay:130, allInTurn:15, targetRounds:60 },
 };
 const aiProf = ()=> AI_PROFILES[aiDiff] || AI_PROFILES.medium;
-
+/* AI 情报记忆：aiMemory[side][enemyId] = 最后目击位置 */
+const aiMemory=[{},{}];
+const aiInterceptors=new Set();   // 本回合派回防拦截的单位 id
+const aiGuardId=[null,null];      // 本回合驻守己方大本营的卫兵单位 id（每方 1 个，防偷家）
+/* 战略规划：偷家(capture) / 歼灭(hunt) —— 依据双方力量对比与敌方兵力分布 */
+const aiDoctrine=["hunt","hunt"];
+function aiVisFor(side){
+  const vis=computeVision(side);
+  if(aiDiff==="hard"){
+    /* 困难档：全程上帝视角（透视玩家所有单位与位置） */
+    for(let r=0;r<N;r++)for(let c=0;c<N;c++) vis.add(key(r,c));
+  }
+  return vis;
+}
+/* 偷家赛跑预测：估算双方"冲到对方大本营并完成 2 回合占领"的到达回合数（ETA）。
+   ETA = ceil(最近步骑单位到目标大本营的曼哈顿距离 / 移动力)
+       + (目标大本营有敌方卫兵时：战力不足→∞ 判定无法偷家；占优→+2~4 回合战斗耗时)
+       + 剩余占领驻留回合 (2-baseHold)。
+   返回 {winner, myEta, enEta, margin}：winner=-1 表示双方都无法占领。
+   困难档上帝视角下可精确预判"双方同时偷家时谁能胜利"。 */
+function aiPredictBaseRace(side){
+  function eta(s){
+    const [br,bc]=BASES[1-s];
+    const guard=corps.find(p=>p.alive&&p.side!==s&&p.r===br&&p.c===bc&&!U(p).air);
+    let runner=null,bestD=Infinity;
+    for(const p of corps){
+      /* 可占领单位 = 非空中且非侦察兵（与 endTurn 占领判定一致） */
+      if(!p.alive||p.side!==s||U(p).air||p.type==="scout") continue;
+      const d=Math.abs(p.r-br)+Math.abs(p.c-bc);
+      if(d<bestD){bestD=d;runner=p;}
+    }
+    if(!runner) return Infinity;
+    let t=Math.ceil(bestD/Math.max(1,U(runner).move));
+    if(guard){
+      const atk=unitPower(runner,true,false), def=aiDefPowerAt(br,bc,1-s);
+      if(def>atk*2.2) return Infinity;                       // 打不过卫兵 → 判定无法偷家
+      t+=2+Math.round(Math.min(2,def/(atk+1)));              // 攻坚战斗耗时粗估 2~4 回合
+    }
+    t+=Math.max(0,2-(baseHold[s]||0));                       // 占领需驻留 2 回合
+    return t;
+  }
+  const myEta=eta(side), enEta=eta(1-side);
+  let winner=-1;
+  if(isFinite(myEta)&&(!isFinite(enEta)||myEta<enEta)) winner=side;
+  else if(isFinite(enEta)&&(!isFinite(myEta)||enEta<myEta)) winner=1-side;
+  const a=isFinite(myEta)?myEta:99, b=isFinite(enEta)?enEta:99;
+  return {winner,myEta,enEta,margin:Math.abs(a-b)};
+}
+/* ================= 战术分析模块 =================
+   1) compareBattleOutcomes(side)：发动战争的位置 vs 战果比较
+   2) baseThreatLevel(side)：大本营受威胁程度量化
+   3) enemyKnowledgeChain(side)：敌方是否猜出我方兵力布置的推测链 */
+function updateExposure(){
+  for(const p of corps){
+    if(!p.alive) continue;
+    const foe=1-p.side;
+    if(unitVisibleTo(p,foe,computeVision(foe))){ p.exposedTurn=turnNo; p.exposeCount=(p.exposeCount||0)+1; }
+  }
+}
+function compareBattleOutcomes(side){
+  const zones={};
+  for(const b of battleStats){
+    if(b.side!==side) continue;
+    const o=zones[b.zone]=zones[b.zone]||{n:0,wins:0,myLoss:0,foeLoss:0,dmg:0};
+    o.n++;
+    if(b.won) o.wins++;
+    o.myLoss+=b.myLoss||0; o.foeLoss+=b.foeLoss||0; o.dmg+=b.dmg||0;
+  }
+  const list=Object.entries(zones).map(([zone,o])=>({
+    zone, n:o.n, wins:o.wins,
+    winRate:Math.round(o.wins/o.n*100),
+    exchange:o.myLoss>0?Math.round(o.foeLoss/o.myLoss*100)/100:(o.foeLoss>0?99:0),  // 战损比 敌/我
+    myLoss:o.myLoss, foeLoss:o.foeLoss, dmg:o.dmg
+  }));
+  list.sort((a,b)=>b.n-a.n);
+  let advice="交战样本不足，暂无结论";
+  const cand=list.filter(z=>z.n>=2);
+  if(cand.length){
+    const best=[...cand].sort((a,b)=>(b.winRate-a.winRate)||((b.exchange||0)-(a.exchange||0)))[0];
+    advice=`在「${best.zone}」发动进攻战果最佳（${best.wins}/${best.n} 胜，战损比 ${best.exchange}），宜优先选择该区域交战`;
+  } else if(list.length){
+    advice=`仅「${list[0].zone}」有交战记录（${list[0].wins}/${list[0].n} 胜）`;
+  }
+  return {side, total:list.reduce((s,z)=>s+z.n,0), list, advice};
+}
+function baseThreatLevel(side){
+  const [br,bc]=BASES[side];
+  let score=0; const threats=[];
+  for(const p of corps){
+    if(!p.alive||p.side===side||U(p).air||p.type==="scout") continue;   // 侦察兵不能占领，不构成占领威胁
+    const d=Math.abs(p.r-br)+Math.abs(p.c-bc);
+    if(d>16) continue;
+    const v=p.troops*(U(p).cost||1);
+    const w=v/(1+d/6);                    // 距离衰减威胁权重
+    score+=w;
+    threats.push({type:p.type,dist:d,value:Math.round(v),weight:Math.round(w)});
+  }
+  score+=(baseHold[1-side]||0)*80;        // 敌方占领进度为最高级别威胁
+  threats.sort((a,b)=>b.weight-a.weight);
+  const level= score<15?"安全":score<45?"警戒":score<90?"告急":"危急";
+  return {side, score:Math.round(score), level, topThreats:threats.slice(0,3), occupyProgress:baseHold[1-side]||0};
+}
+function enemyKnowledgeChain(side){
+  const known=[],stale=[],unknown=[];
+  let knownVal=0, totalVal=0;
+  for(const p of corps){
+    if(!p.alive||p.side!==side) continue;
+    const v=p.troops*(U(p).cost||1); totalVal+=v;
+    if(p.exposedTurn===undefined) unknown.push(p);
+    else if(turnNo-p.exposedTurn<=8){ known.push(p); knownVal+=v; }
+    else stale.push(p);
+  }
+  const pct= totalVal?Math.round(knownVal/totalVal*100):0;
+  const n=known.length+stale.length+unknown.length;
+  const chain=[];
+  chain.push(`① 暴露事件：我方 ${n} 个兵团中 ${n-unknown.length} 个曾进入敌方视野（敌方情报记忆窗口 8 回合）`);
+  for(const p of known.slice(0,4)) chain.push(`   · ${p.type}×${p.troops} 最近于第 ${p.exposedTurn} 回合暴露（共 ${p.exposeCount} 次被目击）→ 敌方情报新鲜`);
+  for(const p of stale.slice(0,2)) chain.push(`   · ${p.type}×${p.troops} 上次暴露在第 ${p.exposedTurn} 回合 → 敌方仅存过期情报，可能误判位置`);
+  chain.push(`② 情报时效：敌方新鲜掌握 ${known.length} 个、存疑 ${stale.length} 个、从未发现 ${unknown.length} 个兵团`);
+  chain.push(`③ 布置推测：敌方对我方兵力布置的掌握度约 ${pct}%（按兵团价值加权）`);
+  chain.push(`④ 结论：${pct>=70?"布置已基本暴露，奇袭成功率低，宜正面对决":pct>=35?"布置半暴露，敌方可能针对性布防":"布置隐蔽良好，适合奇袭与偷家"}`);
+  return {side, knownPct:pct, known:known.length, stale:stale.length, unknown:unknown.length, chain};
+}
+function aiPlanDoctrine(side){
+  const [er,ec]=BASES[1-side];
+  const [mr,mc]=BASES[side];
+  let my=0, en=0, enBaseGuard=0, myBaseGuard=0, enNearMyBase=0;
+  for(const p of corps){
+    if(!p.alive||U(p).air) continue;
+    const v=p.troops*U(p).cost;
+    if(p.side===side){ my+=v; if(Math.abs(p.r-mr)+Math.abs(p.c-mc)<=6) myBaseGuard+=v; continue; }
+    en+=v;
+    /* 侦察兵不能占领、无战斗力 → 不构成战略威胁（hunt/回防/告警均忽略之，防止残局追着侦察兵空转） */
+    if(p.type==="scout") continue;
+    /* 困难档上帝视角直接读位置；其余档仅统计"可见+记忆"的敌军 */
+    let known=false;
+    if(aiDiff==="hard") known=true;
+    else{
+      if(unitVisibleTo(p,side,computeVision(side))) known=true;
+      else{
+        const m=aiMemory[side][p.id];
+        if(m&&turnNo-m.turn<=8) known=true;
+      }
+    }
+    if(known&&Math.abs(p.r-er)+Math.abs(p.c-ec)<=6) enBaseGuard+=v;
+    if(known&&Math.abs(p.r-mr)+Math.abs(p.c-mc)<=9) enNearMyBase+=v;
+  }
+  const enCombat=en;   // 具备战斗力（可占领）的敌军价值
+  const isHard=(aiDiff==="hard");
+  /* 分级告警：大股敌军逼近老巢 → 全军回防；小股骚扰 → 仅派最近步骑拦截（在 aiAct 中处理），主力照常进攻 */
+  const fullAlarm = enNearMyBase>=enCombat*0.5 || (enNearMyBase>myBaseGuard*1.2 && enNearMyBase>=enCombat*0.25);
+  const homeThreat = enCombat>0 && enNearMyBase>my*0.06 && fullAlarm && myBaseGuard<enNearMyBase*0.8;
+  const race=isHard?aiPredictBaseRace(side):null;                      // 双向偷家赛跑推演（上帝视角）
+  const prevDoc=aiDoctrine[side];
+  let doc;
+  if(homeThreat) doc="defend";                                      // 大股入侵 → 回防保家
+  else if(!isHard && enCombat>0 && enNearMyBase>0 && myBaseGuard<enNearMyBase*0.8) doc="defend"; // 中/简单档：视野内敌军逼近且守备不足 → 回防
+  else if(race && race.winner===1-side && race.margin>3 && enNearMyBase>0) doc="defend";   // 偷家赛跑明显会输且敌军已逼近 → 回防保家
+  else if(enCombat===0) doc="capture";                              // 敌方已无可战之力 → 直接占领终结
+  else if(isHard && turnNo>20) doc="capture";                       // 困难档时机已到 → 全力偷家终结
+  else if(enBaseGuard<enCombat*0.35) doc="capture";                 // 敌主力离家远/老巢空虚 → 偷家
+  else if(my>=enCombat*1.6 && enNearMyBase<enCombat*0.6) doc="hunt";  // 兵力碾压且老家无大险 → 歼灭
+  else if(my>=enCombat*1.3) doc="hunt";                             // 兵力明显占优 → 歼灭有生力量
+  else if(turnNo>20) doc="capture";                                 // 后期僵持 → 赌一波占领
+  else doc="hunt";
+  if(doc!==prevDoc && doc==="defend" && homeThreat){
+    const tl=baseThreatLevel(side);
+    log(`【AI战术推演】大本营威胁度 ${tl.score}（${tl.level}，占领进度 ${tl.occupyProgress}/2）→ 全军回防`,"sys",side);
+  }
+  if(doc!==prevDoc && race && (doc==="defend"||doc==="capture") && race.winner!==-1){
+    const tag=doc==="defend"?"回防拆家":"全力偷家";
+    log(`【AI战术推演】偷家赛跑预测：我方ETA ${isFinite(race.myEta)?race.myEta:"∞"} vs 敌方ETA ${isFinite(race.enEta)?race.enEta:"∞"} → ${tag}`,"sys",side);
+  }
+  if(doc!==prevDoc && doc==="capture"){
+    const kc=enemyKnowledgeChain(side);
+    log(`【AI战术推演】敌情推测链：敌方对我方布置掌握度 ${kc.knownPct}% → 偷家隐蔽性${kc.knownPct>=50?"一般":"良好"}`,"sys",side);
+  }
+  aiDoctrine[side]=doc;
+}
+function aiUpdateMemory(side, vis){
+  for(const e of corps){
+    if(!e.alive||e.side===side||U(e).air) continue;
+    if(unitVisibleTo(e,side,vis)) aiMemory[side][e.id]={r:e.r,c:e.c,turn:turnNo};
+  }
+}
 function aiVisCells(p, vis, range){
   const out=[];
   for(const k of vis){
@@ -1314,27 +1952,26 @@ function aiVisCells(p, vis, range){
   }
   return out;
 }
-/* 选格：aimP 概率下优先选“可见敌军所在格”（按总价值最高），否则随机 */
-function aiPickCell(p, vis, range){
+function aiPickTarget(p, vis, range){
   const prof=aiProf();
   const cells=aiVisCells(p,vis,range);
   if(!cells.length) return null;
-  const foes=cells.filter(q=>corps.some(e=>e.alive&&e.side!==p.side&&e.r===q.r&&e.c===q.c));
-  if(foes.length && Math.random()<prof.aimP){
-    let best=foes[0], bv=-1;
-    for(const q of foes){
-      let v=0;
-      for(const e of corps) if(e.alive&&e.side!==p.side&&e.r===q.r&&e.c===q.c) v+=e.troops*(U(e).cost||1);
-      if(v>bv){ bv=v; best=q; }
+  let best=null, bv=-1;
+  for(const q of cells){
+    let v=0, has=false;
+    for(const e of corps){
+      if(!e.alive||e.side===p.side||e.r!==q.r||e.c!==q.c||U(e).air) continue;
+      has=true; v+=e.troops*(U(e).cost||1);
     }
-    return best;
+    if(has&&v>bv){ bv=v; best=q; }
   }
-  return cells[randInt(0,cells.length-1)];
+  if(best) return best;
+  if(Math.random()<prof.blindP) return cells[randInt(0,cells.length-1)];
+  return null;
 }
 function aiFreeAdjacent(p){
   const slots=[];
-  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
-    if(!dr&&!dc) continue;
+  for(const [dr,dc] of DIRS4){
     const r=p.r+dr,c=p.c+dc;
     if(!stationable(r,c)) continue;
     if(corps.some(q=>q.alive&&q.r===r&&q.c===c)) continue;
@@ -1342,112 +1979,396 @@ function aiFreeAdjacent(p){
   }
   return slots;
 }
-/* 单单位决策（同步、纯逻辑，供动画驱动与测试复用） */
-function aiActOne(p, vis){
-  if(!p.alive || acted.has(p.id)) return;
-  const u=U(p), prof=aiProf(), roll=Math.random();
-
-  // 休整
-  if(u.canRest && roll<prof.restP){ p.resting=true; acted.add(p.id); return; }
-
-  // 喀秋莎装填
-  if(p.type==="katyusha" && !p.ammo && Math.random()<prof.loadP){ p.ammo=true; acted.add(p.id); return; }
-
-  // 远程打击（优先瞄准可见敌军密集/高价值格）
-  if(u.ranged && canStrike(p) && Math.random()<prof.strikeP){
-    const q=aiPickCell(p,vis,strikeRange(p));
-    if(q){
-      if(p.type==="katyusha"){ katyushaStrike(p,q.r,q.c); p.ammo=false; }
-      else strikeCell(p,q.r,q.c,p.troops*strikeBase(p));
-      acted.add(p.id); return;
+function aiDefPowerAt(r,c,side){
+  let v=0;
+  for(const p of corps){
+    if(!p.alive||p.side===side||p.r!==r||p.c!==c||U(p).air) continue;
+    if(meleeCapable(p)) v+=unitPower(p,false,false);
+    else if(U(p).cls==="art"||U(p).cls==="hf") v+=p.troops*0.5;
+  }
+  return v;
+}
+/* 尝试冲锋：找战力有利的可见敌军格 */
+function tryAiCharge(p, vis, prof, hardAllIn){
+  const mt=computeMoveTargets(p, U(p).charge, vis);
+  let best=null, bestScore=-Infinity;
+  for(const [k,info] of mt.corpsCells){
+    const q=unkey(k);
+    const foes=corps.filter(e=>e.alive&&e.side!==p.side&&e.r===q.r&&e.c===q.c&&!U(e).air);
+    if(!foes.length) continue;
+    const crossed = info.path && info.path.some(([pr,pc],i)=>{
+      const prev = i===0?[p.r,p.c]:info.path[i-1];
+      const ek=edgeBetween(prev[0],prev[1],pr,pc);
+      return ek&&getFort(ek);
+    });
+    let myPow=unitPower(p,true,crossed);
+    if(info.path&&info.path.length>U(p).move) {}      // 冲锋代价可接受
+    const defPow=aiDefPowerAt(q.r,q.c,p.side);
+    const score=myPow-defPow*prof.atkNeed;
+    if(score>bestScore){ bestScore=score; best={k,info}; }
+  }
+  if(best && bestScore>=0){
+    executeMove(p,best.info.path);
+    acted.add(p.id);
+    return true;
+  }
+  if(hardAllIn && best && bestScore>-unitPower(p,true,false)*0.25){
+    /* 全面强攻：仅允许接近均势的战斗（对方战力不超过己方 1.1 倍），坚决不打明显劣势仗 */
+    const q=unkey(best.k);
+    const defPow=aiDefPowerAt(q.r,q.c,p.side);
+    if(defPow<=unitPower(p,true,false)*1.1){
+      executeMove(p,best.info.path);
+      acted.add(p.id);
+      return true;
     }
   }
-
-  // 投掷照明弹 / 烟雾弹
-  if(u.throwable && Math.random()<prof.throwP && (p.flare>0||p.smoke>0)){
-    const q=aiPickCell(p,vis,visionRange(p));
-    if(q){
-      if(p.flare>0 && Math.random()<0.5){
-        p.flare--;
-        for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++)
-          if(q.r+dr>=0&&q.r+dr<N&&q.c+dc>=0&&q.c+dc<N) flare[q.r+dr][q.c+dc]=5;
-      } else if(p.smoke>0){
-        p.smoke--;
-        const id=smokeSeq++;
-        for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++)
-          if(q.r+dr>=0&&q.r+dr<N&&q.c+dc>=0&&q.c+dc<N){ smokeLeft[q.r+dr][q.c+dc]=5; smokeId[q.r+dr][q.c+dc]=id; }
-      }
-      acted.add(p.id); return;
+  return false;
+}
+/* BFS 目标距离场寻路：从 aims 多源 BFS（只看地形）构建距离场，
+   沿场值单调下降方向移动——保证无局部极小值、不震荡，能绕过地形凹地。 */
+function aiStepToward(p, vis, aims){
+  if(!aims||!aims.length) return false;
+  const u=U(p);
+  const field=grid(Infinity);
+  const q=[];
+  for(const m of aims){
+    if(inMap(m.r,m.c)&&stationable(m.r,m.c)&&field[m.r][m.c]!==0){ field[m.r][m.c]=0; q.push([m.r,m.c]); }
+  }
+  for(let i=0;i<q.length;i++){
+    const [r,c]=q[i];
+    for(const [dr,dc] of DIRS4){
+      const nr=r+dr,nc=c+dc;
+      if(!inMap(nr,nc)||!stationable(nr,nc)||field[nr][nc]!==Infinity) continue;
+      field[nr][nc]=field[r][c]+1;
+      q.push([nr,nc]);
     }
   }
-
-  // 轰炸机导弹
-  if(u.missile && p.missile>0 && Math.random()<prof.missileP){
-    const q=aiPickCell(p,vis,visionRange(p));
-    if(q){ p.missile--; pendingMissiles.push({r:q.r,c:q.c,side:p.side}); acted.add(p.id); return; }
+  const cur=field[p.r][p.c];
+  const mt=computeMoveTargets(p, u.move, vis);
+  let best=null, bd=Infinity;
+  for(const [k,path] of mt.empties){
+    const qr=unkey(k);
+    let d=field[qr.r][qr.c];
+    if(d===Infinity){ for(const m of aims) d=Math.min(d,Math.abs(qr.r-m.r)+Math.abs(qr.c-m.c)); }
+    if(d<bd){ bd=d; best=path; }
   }
-
-  // 步兵修工事 / 防空地堡（休整中的步兵）
-  if(p.type==="inf" && p.resting && Math.random()<prof.buildP){
-    if(bunker[p.r][p.c]<=0 && !bunkerDead[p.r][p.c] && Math.random()<0.3){
-      bunker[p.r][p.c]=3;
-    } else {
-      const slots=aiFreeAdjacent(p);
-      if(slots.length){ const [r,c]=slots[randInt(0,slots.length-1)]; fort[r][c]=!fort[r][c]; }
-    }
-    acted.add(p.id); return;
+  /* 已处于可达范围内场值最低的位置 → 原地不动（避免同值横跳） */
+  if(!best||bd>=cur) return false;
+  executeMove(p, best);
+  return true;
+}
+function aiMoveObj(p, vis, prof, forceBase){
+  const u=U(p);
+  const [ebR,ebC]=BASES[1-p.side], [hbR,hbC]=BASES[p.side];
+  /* 踩上敌方大本营 → 一律原地驻守（占领需连续 2 回合驻留，任何模式下都不应走开） */
+  if(p.r===ebR&&p.c===ebC){ p.resting=true; return; }
+  /* 已抵达目标大本营（enemy=敌方 / home=己方）→ 原地驻守，不再震荡走位 */
+  if(forceBase==="enemy"||forceBase==="home"){
+    const [tr,tc]=forceBase==="home"?[hbR,hbC]:[ebR,ebC];
+    if(p.r===tr&&p.c===tc){ p.resting=true; return; }
   }
-
-  // 分兵
-  if(p.troops>=20 && Math.random()<prof.splitP){
-    const slots=aiFreeAdjacent(p);
-    if(slots.length){
-      const n=Math.max(5,Math.floor(p.troops/2));
-      const [r,c]=slots[randInt(0,slots.length-1)];
-      corps.push({ id:nextId++, side:p.side, type:p.type, troops:n, r, c,
-                   resting:false, fatigue:0, alive:true, acc:0, dur:u.dur||0,
-                   flare:0, smoke:0, missile:0, ammo:false });
-      p.troops-=n;
-      acted.add(p.id); return;
-    }
-  }
-
-  // 移动：aimP 概率向敌方大本营推进，否则随机
-  const steps=p.type==="scout" ? (Math.random()<0.3?3:2) : u.move;
-  const mt=computeMoveTargets(p,steps,vis);
-  const opts=[...mt.empties.keys()].map(unkey).concat([...mt.corpsCells.keys()].map(unkey));
-  if(!opts.length){ acted.add(p.id); return; }
+  const mt=computeMoveTargets(p, u.move, vis);
+  const opts=[...mt.empties.keys()].map(unkey);
+  if(!opts.length) return;
   let pick;
+  if(forceBase==="enemy"||forceBase==="home"){
+    /* BFS 大半径寻路逼近大本营（解决低移动力单位被地形凹地困住的震荡问题） */
+    aiStepToward(p, vis, [forceBase==="home"?{r:hbR,c:hbC}:{r:ebR,c:ebC}]);
+    return;
+  }
   if(Math.random()<prof.aimP){
-    const [er,ec]=BASES[1-p.side];
+    /* 逼近最近可感知敌军（残兵追杀时向其逃亡方向预判拦截）→ 记忆 → 大本营 */
+    const foes=corps.filter(e=>e.alive&&e.side!==p.side&&!U(e).air&&unitVisibleTo(e,p.side,vis));
     let best=Infinity;
-    for(const o of opts){
-      const d=Math.max(Math.abs(o.r-er),Math.abs(o.c-ec));
-      if(d<best){ best=d; pick=o; }
+    const mem=aiMemory[p.side];
+    const memList=(!foes.length&&prof.aimP>=0.7)?Object.values(mem).filter(m=>turnNo-m.turn<=8):[];
+    const [er0,ec0]=BASES[1-p.side];
+    const preds=[];
+    for(const e of foes){
+      preds.push({r:Math.round(e.r*0.7+er0*0.3), c:Math.round(e.c*0.7+ec0*0.3)});   // 预判逃向自家大本营
+      preds.push({r:e.r,c:e.c});
     }
+    const aims=preds.length?preds:(memList.length?memList:[{r:er0,c:ec0}]);
+    /* BFS 寻路逼近（同样规避地形震荡） */
+    aiStepToward(p, vis, aims);
+    return;
   } else {
     pick=opts[randInt(0,opts.length-1)];
   }
   const k=key(pick.r,pick.c);
-  const path=mt.empties.has(k)?mt.empties.get(k):mt.corpsCells.get(k).path;
-  if(!path){ acted.add(p.id); return; }
-  executeMove(p,path);
-  acted.add(p.id);
+  const path=mt.empties.get(k);
+  if(path) executeMove(p,path);
 }
-/* 整方行动（同步核心）：遍历全部存活未行动单位，末尾检查胜负 */
+function aiThrow(p, vis){
+  const prof=aiProf();
+  const cells=aiVisCells(p,vis,U(p).throwRange);
+  if(!cells.length) return false;
+  /* 找可见敌军最密集格投照明弹 */
+  let best=null,bv=-1;
+  for(const q of cells){
+    let v=0,has=false;
+    for(const e of corps){
+      if(!e.alive||e.side===p.side||e.r!==q.r||e.c!==q.c) continue;
+      has=true; v+=e.troops;
+    }
+    if(has&&v>bv){bv=v;best=q;}
+  }
+  if(p.flare>0&&best&&Math.random()<prof.aimP){
+    p.flare--;
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      const r=best.r+dr,c=best.c+dc;
+      if(inMap(r,c)) flare[r][c]=5;
+    }
+    return true;
+  }
+  if(p.smoke>0&&Math.random()<prof.throwP){
+    const q=cells[randInt(0,cells.length-1)];
+    p.smoke--;
+    const id=smokeSeq++;
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      const r=q.r+dr,c=q.c+dc;
+      if(inMap(r,c)){ smokeLeft[r][c]=5; smokeId[r][c]=id; }
+    }
+    return true;
+  }
+  return false;
+}
+function aiBuild(p){
+  if(bunker[p.r][p.c]<=0&&!bunkerDead[p.r][p.c]&&Math.random()<0.3){
+    bunker[p.r][p.c]=3;
+    return;
+  }
+  const slots=aiFreeAdjacent(p);
+  if(slots.length){
+    const [r,c]=slots[randInt(0,slots.length-1)];
+    const ek=edgeBetween(p.r,p.c,r,c);
+    if(ek) setFort(ek,true);
+  }
+}
+/* AI 集火：寻找战力有利的可见敌军格，集结本回合能赶到的全部步骑一起冲入 */
+function aiGroupCharge(side, vis, prof){
+  if(!corps.some(p=>p.alive&&p.side===side&&meleeCapable(p)&&chargeEligible(p,side))) return false;
+  const targets=new Map();
+  for(const e of corps){
+    if(!e.alive||e.side===side||U(e).air) continue;
+    if(!unitVisibleTo(e,side,vis)) continue;
+    targets.set(key(e.r,e.c),{r:e.r,c:e.c});
+  }
+  if(!targets.size) return false;
+  let best=null, bestScore=-Infinity;
+  for(const t of targets.values()){
+    const ids=[];
+    let myPow=0, targetValue=0;
+    for(const p of corps){
+      if(!chargeEligible(p,side)) continue;
+      if(p.r===t.r&&p.c===t.c){ ids.push(p.id); myPow+=unitPower(p,true,false); continue; }
+      const mt=computeMoveTargets(p,U(p).charge,vis);
+      const info=mt.corpsCells.get(key(t.r,t.c));
+      if(!info) continue;
+      let crossed=false;
+      for(let i=0;i<info.path.length;i++){
+        const prev=i===0?[p.r,p.c]:info.path[i-1];
+        const ek=edgeBetween(prev[0],prev[1],info.path[i][0],info.path[i][1]);
+        if(ek&&getFort(ek)){ crossed=true; break; }
+      }
+      ids.push(p.id);
+      myPow+=unitPower(p,true,crossed);
+    }
+    if(!ids.length) continue;
+    const defPow=aiDefPowerAt(t.r,t.c,side);
+    if(defPow>myPow*2.2) continue;                 // 必败保护：不冲明显打不过的大股敌军
+    let value=0;
+    for(const e of corps){
+      if(!e.alive||e.side===side||e.r!==t.r||e.c!==t.c||U(e).air) continue;
+      value+=e.troops*U(e).cost;
+    }
+    /* 歼灭战必须自身占优（myPow > defPow×atkNeed）才发动；只有远超目标回合的全面强攻才放宽到 0.85 */
+    const allIn=(turnNo>prof.allInTurn);
+    const need=prof.atkNeed*(allIn?0.85:1.0);
+    const score=myPow-defPow*need + value*0.05;
+    if(score>bestScore){ bestScore=score; best={t,ids}; }
+  }
+  if(!best||bestScore<0) return false;
+  performGroupCharge(side, best.t.r, best.t.c, best.ids);
+  return true;
+}
+/* 单单位决策 */
+function aiActOne(p, vis){
+  if(!p.alive||acted.has(p.id)) return;
+  const u=U(p), prof=aiProf();
+  const allIn = (turnNo>prof.allInTurn);          // 超过目标回合数 → 全面强攻
+  const doctrine=aiDoctrine[p.side]||"hunt";
+
+  if(p.lockAtk&&coLocatedEnemy(p)){
+    const allies=infCavAt(p.r,p.c,p.side).filter(q=>!acted.has(q.id)&&meleeCapable(q));
+    if(allies.length){
+      const seg=resolveBattle(allies,p.r,p.c);
+      for(const q of allies) acted.add(q.id);
+    } else acted.add(p.id);
+    return;
+  }
+  if(p.fatigue>0){ p.resting=true; p.fatigue=0; acted.add(p.id); return; }
+  const tgt = doctrine==="capture" ? "enemy" : (doctrine==="defend" ? "home" : false);
+  if(aiGuardId[p.side]===p.id){ p.resting=true; acted.add(p.id); return; }  // 大本营常驻卫兵：守位即杜绝被偷家
+
+  if(p.type==="heavyArt"){
+    if(!p.resting){ p.resting=true; acted.add(p.id); return; }
+    const q=aiPickTarget(p,vis,strikeRange(p));
+    if(q&&Math.random()<prof.strikeP){ performStrike(p,q.r,q.c); acted.add(p.id); return; }
+    /* 无射程内目标 → 前压架设；敌军步骑逼近（≤6格）则原地驻守不再前送 */
+    let nearFoe=false;
+    for(const e of corps){
+      if(!e.alive||e.side===p.side||U(e).air||!meleeCapable(e)) continue;
+      if(Math.abs(e.r-p.r)+Math.abs(e.c-p.c)<=6){ nearFoe=true; break; }
+    }
+    if(!nearFoe&&Math.random()<(allIn?0.85:0.5)){ aiMoveObj(p,vis,prof,tgt); }
+    acted.add(p.id); return;
+  }
+  if(p.type==="katyusha"){
+    if(!p.ammo){ p.ammo=true; acted.add(p.id); return; }
+    const q=aiPickTarget(p,vis,strikeRange(p));
+    if(q&&Math.random()<prof.strikeP){ performKatyusha(p,q.r,q.c); acted.add(p.id); return; }
+    aiMoveObj(p,vis,prof,tgt); acted.add(p.id); return;
+  }
+  if(u.ranged){
+    const q=aiPickTarget(p,vis,strikeRange(p));
+    if(q&&Math.random()<prof.strikeP){ performStrike(p,q.r,q.c); acted.add(p.id); return; }
+    if(!p.resting&&!allIn&&Math.random()<prof.restP){ p.resting=true; acted.add(p.id); return; }
+    aiMoveObj(p,vis,prof,tgt); acted.add(p.id); return;
+  }
+  if(p.type==="bomber"){
+    if(p.bombs>0&&Math.random()<prof.bombP){
+      const cells=[];
+      for(let dr=-u.bombRange;dr<=u.bombRange;dr++)for(let dc=-u.bombRange;dc<=u.bombRange;dc++){
+        const r=p.r+dr,c=p.c+dc;
+        if(!inMap(r,c)||(dr===0&&dc===0)) continue;
+        let v=0,has=false;
+        for(const e of corps){
+          if(!e.alive||e.side===p.side||e.r!==r||e.c!==c||U(e).air) continue;
+          has=true; v+=e.troops*(U(e).cost||1);
+        }
+        if(has) cells.push({r,c,v});
+      }
+      if(cells.length){
+        cells.sort((a,b)=>b.v-a.v);
+        performBomb(p,cells[0].r,cells[0].c);
+        acted.add(p.id); return;
+      }
+    }
+    aiMoveObj(p,vis,prof,tgt); acted.add(p.id); return;
+  }
+  if(p.type==="recon"){
+    if((p.flare>0||p.smoke>0)&&Math.random()<prof.throwP&&aiThrow(p,vis)){ acted.add(p.id); return; }
+    aiMoveObj(p,vis,prof,tgt); acted.add(p.id); return;
+  }
+  if(p.type==="scout"){
+    if(p.flare>0&&Math.random()<prof.throwP*0.7&&aiThrow(p,vis)){ acted.add(p.id); return; }
+    aiMoveObj(p,vis,prof,tgt); acted.add(p.id); return;
+  }
+  /* 步 / 骑 */
+  if(p.type==="inf"&&p.resting&&!allIn&&Math.random()<prof.buildP){ aiBuild(p); acted.add(p.id); return; }
+  if(tryAiCharge(p,vis,prof,allIn)) return;
+  /* 打不过附近的大股敌军 → 脱离接触，转向敌方大本营（占领是明确胜利条件） */
+  {
+    let myPow=unitPower(p,true,false);
+    let outgunned=false;
+    for(const e of corps){
+      if(!e.alive||e.side===p.side||U(e).air) continue;
+      if(!unitVisibleTo(e,p.side,vis)) continue;
+      if(Math.abs(e.r-p.r)+Math.abs(e.c-p.c)>3) continue;
+      if(meleeCapable(e)&&aiDefPowerAt(e.r,e.c,p.side)>myPow*1.3){ outgunned=true; break; }
+    }
+    if(outgunned){ aiMoveObj(p,vis,prof,"enemy"); acted.add(p.id); return; }
+  }
+  /* 拦截者：全速回防驱离小股骚扰敌军（若邻近敌军则上面已先尝试冲锋） */
+  if(aiInterceptors.has(p.id)){ aiMoveObj(p,vis,prof,"home"); acted.add(p.id); return; }
+  /* 战略推进：capture → 直扑敌方大本营并驻守占领；defend → 全速回防己方大本营 */
+  if(meleeCapable(p)&&(doctrine==="capture"||doctrine==="defend")&&!(p.lockAtk&&coLocatedEnemy(p))){
+    const [er,ec]=doctrine==="defend"?BASES[p.side]:BASES[1-p.side];
+    if(p.r===er&&p.c===ec){ p.resting=true; acted.add(p.id); return; }   // 已到位 → 无条件驻守
+    if(doctrine==="defend"){
+      const mt=computeMoveTargets(p,u.move,vis);
+      if(mt.empties.has(key(er,ec))){ executeMove(p, mt.empties.get(key(er,ec))); acted.add(p.id); return; }
+      aiMoveObj(p,vis,prof,"home"); acted.add(p.id); return;             // 全速回防
+    }
+    const baseThreatened = corps.some(e=>e.alive&&e.side!==p.side&&e.type!=="scout"&&!U(e).air&&Math.abs(e.r-er)+Math.abs(e.c-ec)<=2&&unitVisibleTo(e,p.side,vis))
+      || Object.values(aiMemory[p.side]).some(m=>Math.abs(m.r-er)+Math.abs(m.c-ec)<=3&&turnNo-m.turn<=6);
+    if(!baseThreatened){
+      const mt=computeMoveTargets(p,u.move,vis);
+      if(mt.empties.has(key(er,ec))){ executeMove(p, mt.empties.get(key(er,ec))); acted.add(p.id); return; }
+      const mtc=computeMoveTargets(p,u.charge,vis);
+      if(mtc.empties.has(key(er,ec))){ executeMove(p, mtc.empties.get(key(er,ec))); acted.add(p.id); return; }
+    }
+  }
+  if(!p.resting&&!allIn&&Math.random()<prof.restP*0.4){ p.resting=true; acted.add(p.id); return; }
+  aiMoveObj(p,vis,prof,tgt); acted.add(p.id);
+}
 function aiAct(side){
-  const vis=computeVision(side);
+  const vis=aiVisFor(side);            // 困难档：上帝视角透视全场
+  aiUpdateMemory(side, vis);
+  aiPlanDoctrine(side);                // 依据战局规划：偷家 or 歼灭
+  const prof=aiProf();
+  /* 大本营卫兵指定：仅当有战斗力的敌军逼近（≤12格）或敌方占领进度已开启时才设卫兵，
+     优先选价值最小的近战兵团（无近战则任选最小）；无敌逼近时不钉死任何主力 */
+  aiGuardId[side]=null;
+  {
+    const [mr,mc]=BASES[side];
+    const threatNearBase = baseHold[1-side]>0 || corps.some(e=>e.alive&&e.side!==side&&!U(e).air&&e.type!=="scout"
+      &&Math.abs(e.r-mr)+Math.abs(e.c-mc)<=12
+      &&(aiDiff==="hard"||unitVisibleTo(e,side,computeVision(side))));
+    if(threatNearBase){
+      let g=null,gv=Infinity;
+      for(const p of corps){
+        if(!p.alive||p.side!==side||U(p).air||p.r!==mr||p.c!==mc) continue;
+        const v=p.troops*(U(p).cost||1);
+        if(meleeCapable(p)&&v<gv){ gv=v; g=p; }
+      }
+      if(!g){
+        for(const p of corps){
+          if(!p.alive||p.side!==side||U(p).air||p.r!==mr||p.c!==mc) continue;
+          const v=p.troops*(U(p).cost||1);
+          if(v<gv){ gv=v; g=p; }
+        }
+      }
+      if(g) aiGuardId[side]=g.id;
+    }
+  }
+  /* 小股骚扰拦截：敌军（含侦察兵）逼近己方大本营而守备不足时，派最近 1-2 个步骑回防，
+     其余单位不受影响继续原任务；大股入侵由 defend 战略全军回防 */
+  aiInterceptors.clear();
+  {
+    const [mr,mc]=BASES[side];
+    const intr=corps.filter(e=>e.alive&&e.side!==side&&!U(e).air&&e.type!=="scout"&&Math.abs(e.r-mr)+Math.abs(e.c-mc)<=7
+      &&(aiDiff==="hard"||unitVisibleTo(e,side,vis)));
+    const guardVal=corps.filter(p=>p.alive&&p.side===side&&!U(p).air&&Math.abs(p.r-mr)+Math.abs(p.c-mc)<=2)
+      .reduce((s,p)=>s+p.troops*(U(p).cost||1),0);
+    const intrVal=intr.reduce((s,e)=>s+e.troops*(U(e).cost||1),0);
+    if(intr.length&&guardVal<intrVal*1.1){
+      const mine=corps.filter(p=>p.alive&&p.side===side&&meleeCapable(p)&&chargeEligible(p,side))
+        .sort((a,b)=>(Math.abs(a.r-mr)+Math.abs(a.c-mc))-(Math.abs(b.r-mr)+Math.abs(b.c-mc)));
+      const k=Math.min(mine.length,intr.length+1);
+      for(let i=0;i<k;i++) aiInterceptors.add(mine[i].id);
+    }
+  }
+  /* 集火：困难档积极发起，中等档概率发起；歼灭模式下更密集 */
+  if(side===aiSide||aiSide<0){
+    const doCharge = aiDiff==="hard" ? 2 : (aiDiff==="medium"?1:0);
+    for(let i=0;i<doCharge;i++){
+      if(!aiGroupCharge(side, vis, prof)) break;
+    }
+  }
   const list=corps.filter(p=>p.alive&&p.side===side&&!acted.has(p.id));
   for(const p of list){
-    if(!p.alive||acted.has(p.id)) continue;   // 行动中可能被反击消灭
+    if(!p.alive||acted.has(p.id)) continue;
     aiActOne(p,vis);
   }
   checkWin();
 }
-/* AI 部署配置：三档风格，均在 1000 预算内、保底地面兵团 */
+/* AI 部署：按预算比例配置 */
 function aiTrimBudget(cfg){
-  const order=["bomber","recon","tank","katyusha","heavyArt","lightArt","cav","inf"];
-  while(deploySpent(cfg)>BUDGET){
+  const order=["bomber","recon","katyusha","tank","heavyArt","lightArt","scout","cav","inf"];
+  let guard=0;
+  while(deploySpent(cfg)>gameBudget&&guard++<2000){
     let cut=false;
     for(const t of order){ if(cfg[t]>0){ cfg[t]--; cut=true; break; } }
     if(!cut) break;
@@ -1455,19 +2376,15 @@ function aiTrimBudget(cfg){
   return cfg;
 }
 function aiDeployConfig(){
-  let cfg;
-  if(aiDiff==="hard"){
-    // 装甲矛头+炮兵压制+侦察开雾+空军补刀（合计恰好 1000）
-    cfg={inf:150,cav:15,lightArt:10,scout:4,heavyArt:12,tank:4,katyusha:2,recon:1,bomber:1};
-  } else if(aiDiff==="easy"){
-    // 人海步兵、支援薄弱、结构松散
-    cfg={inf:randInt(350,550),cav:randInt(5,20),lightArt:randInt(5,15),scout:2,
-         heavyArt:randInt(2,6),tank:randInt(0,1),katyusha:0,recon:0,bomber:randInt(0,1)};
-  } else {
-    // 中等：均衡配置 + 小幅随机（与 sim-game 模拟风格一致）
-    cfg={inf:300+randInt(0,150),cav:20+randInt(0,15),lightArt:10+randInt(0,10),
-         scout:3+randInt(0,2),heavyArt:8+randInt(0,6),tank:randInt(1,3),
-         katyusha:randInt(0,1),recon:randInt(0,1),bomber:randInt(0,1)};
+  const B=gameBudget;
+  const frac = aiDiff==="hard"
+    ? {inf:.30,cav:.15,lightArt:.07,heavyArt:.10,tank:.16,katyusha:.10,scout:.04,recon:.04,bomber:.04}
+    : aiDiff==="medium"
+    ? {inf:.56,cav:.10,lightArt:.08,heavyArt:.06,tank:.08,katyusha:.05,scout:.04,recon:.02,bomber:.01}
+    : {inf:.70,cav:.06,lightArt:.06,heavyArt:.04,tank:.05,katyusha:.03,scout:.03,recon:.02,bomber:.01};
+  const cfg={};
+  for(const t of DEPLOY_TYPES){
+    cfg[t]=Math.max(0,Math.round(B*frac[t]/UNITS[t].cost));
   }
   return aiTrimBudget(cfg);
 }
@@ -1475,8 +2392,7 @@ function aiAutoDeploy(){
   phase="deploy"; deploySide=aiSide; deployCfg=aiDeployConfig();
   renderDeploy(); confirmDeploy();
 }
-
-/* ---- AI 回合驱动（异步逐单位、可观看、可快进） ---- */
+/* AI 回合驱动 */
 function runAiTurn(){
   if(aiBusy||gameOver||phase!=="play"||aiSide<0||aiSide!==current) return;
   aiBusy=true; aiQueue=corps.filter(p=>p.alive&&p.side===current&&!acted.has(p.id)).map(p=>p.id);
@@ -1497,7 +2413,7 @@ function aiNext(){
     return;
   }
   const p=getCorps(id);
-  if(p && p.alive && !acted.has(p.id)){
+  if(p&&p.alive&&!acted.has(p.id)){
     aiActOne(p, computeVision(current));
     render();
   }
@@ -1508,7 +2424,7 @@ function aiFastForward(){
   if(!aiBusy) return;
   aiFast=true;
   aiClearT(aiTimer);
-  aiAct(current);          // 剩余未行动单位同步处理（已行动的自动跳过）
+  aiAct(current);
   aiStop();
   if(gameOver){ render(); if(!victoryShown) showVictory(); return; }
   endTurn();
@@ -1523,15 +2439,36 @@ function aiStop(){
 function closeModal(){ document.getElementById("modalWrap").classList.add("hidden"); }
 function modalShow(html){ document.getElementById("modalCard").innerHTML=html; document.getElementById("modalWrap").classList.remove("hidden"); }
 function segHTML(seg){
-  const a=`${SIDE_NAME[seg.def.side===0?1:0]}${typeName(seg.atkType)}#${seg.atkId}`;
-  let html=`<div class="battle-seg"><div class="vs">⚔ ${a}(${seg.atk0})　vs　${corpsLabel(seg.def)}(${seg.def0}${seg.def.resting?" · 休整":""}${U(seg.def).dur?` · 耐久${seg.def.dur}`:""})</div>`;
-  if(seg.special) html+=`<div class="rounds">${seg.special}</div>`;
-  else html+=`<div class="rounds">`+seg.rounds.slice(0,40).map((rd,i)=>
-      `第${i+1}轮：攻损 ${rd.la} → 剩 ${rd.aLeft} ｜ 守损 ${rd.lb} → 剩 ${rd.bLeft}`).join("<br>")
-      + (seg.rounds.length>40?`<br>… 共 ${seg.rounds.length} 轮`:``)+`</div>`;
+  const san = aiSide>=0;                       // vs AI：隐藏敌方兵种与剩余兵力
+  const atkSide=seg.atkSide;
+  const aName = san&&atkSide===aiSide ? `敌方兵团` : seg.atk0.map(x=>typeName(x.type)+"×"+x.n).join("+");
+  let html=`<div class="battle-seg"><div class="vs">⚔ ${aName}（战力 ${san&&atkSide===aiSide?"?":Math.round(seg.Pa)}）　vs　${
+    san&&atkSide!==aiSide ? `敌方兵团（战力?）` : seg.def0.map(x=>typeName(x.type)+"×"+x.n).join("+")+"（战力 "+Math.round(seg.Pd)+"）"}</div>`;
+  if(seg.empty) html+=`<div class="rounds">（无实际交战）</div>`;
+  else{
+    let rl="";
+    for(const rd of seg.rounds){
+      if(rd.admg>0){
+        rl+= san&&atkSide!==aiSide
+          ? `冲锋：敌方损失惨重`
+          : `冲锋：守方损失 ${rd.admg} 人 → 剩 ${rd.defLeft}`;
+      } else {
+        rl+= san&&atkSide===aiSide
+          ? `反击：我方损失惨重`
+          : `反击：攻方损失 ${rd.ddmg} 人 → 剩 ${rd.atkLeft}`;
+      }
+    }
+    html+=`<div class="rounds">${rl||"（一击定胜负）"}</div>`;
+    if(seg.nonInf&&seg.nonInf.length&&!san)
+      html+=`<div class="rounds">炮兵/载具：${seg.nonInf.map(x=>`${typeName(x.type)}${x.dead?" 被毁/全歼":(x.durLost?` 耐久-${x.durLost}`:"")}`).join("、")}</div>`;
+    if(seg.nonInf&&seg.nonInf.length&&san&&atkSide===aiSide)
+      html+=`<div class="rounds">炮兵/载具：${seg.nonInf.map(x=>`${U({type:x.type}).name.includes("炮")||x.type==="tank"||x.type==="katyusha"?"敌方载具/炮兵":""}${x.dead?" 被毁":(x.durLost?" 受损":"")}`).filter(Boolean).join("、")}</div>`;
+    if(!san) html+=`<div class="rounds">攻方战力 ${Math.round(seg.Pa)} · 守方战力 ${Math.round(seg.Pd)} · 冲锋比例 ${seg.rA}% / 反击比例 ${seg.rD}%</div>`;
+  }
   const parts=[];
-  if(seg.defDead) parts.push(`${typeName(seg.def.type)} 被全歼`);
-  if(seg.atkDead) parts.push(`攻方被全歼`);
+  if(seg.defDead) parts.push("守方被全歼");
+  if(seg.atkDead) parts.push("攻方被全歼");
+  if(seg.locked) parts.push("双方共格：攻方下回合只能战斗，防守方可撤退");
   if(!parts.length) parts.push("交战结束");
   html+=`<div class="result">结果：${parts.join("；")}</div></div>`;
   return html;
@@ -1539,15 +2476,16 @@ function segHTML(seg){
 function showBattleModal(segs){
   let html=`<h2>⚔ 交战报告</h2>`;
   for(const s of segs) html+=segHTML(s);
-  html+=`<div style="text-align:center;margin-top:6px"><button class="btn primary" data-action="close-modal">确定</button></div>`;
+  html+=`<div class="tip-note">※ 一次交战至多 3 轮；未分出胜负则共格对峙，可继续「战斗」或撤退。</div>
+    <div style="text-align:center;margin-top:6px"><button class="btn primary" data-action="close-modal">确定</button></div>`;
   modalShow(html);
 }
 function showStrikeModal(cp,rep,lines,total,vehLost,vehDead){
   let html=`<h2>🎯 打击报告</h2>
-    <div class="battle-seg"><div class="vs">${corpsLabel(cp)} · ${rep.area?"3×3 面杀伤":"定点打击"}</div>
+    <div class="battle-seg"><div class="vs">${unitTag(cp)} · ${rep.bomb?"轰炸":rep.area?"3×3 面杀伤":"定点打击"}</div>
     <div class="rounds">${lines.length?lines.join("<br>"):"（打击范围内无目标）"}</div>`;
-  if(rep.fort) html+=`<div class="rounds">摧毁防御工事 ${rep.fort} 座</div>`;
-  if(rep.bunker) html+=`<div class="rounds">命中防空地堡 ${rep.bunker} 次${rep.bunkerDead?"（已失效）":""}</div>`;
+  if(rep.forts&&rep.forts.length) html+=`<div class="rounds">摧毁防御工事 ${rep.forts.length} 段</div>`;
+  if(rep.bunk) html+=`<div class="rounds">命中防空地堡 ${rep.bunk} 次${rep.bunkDead?"（已失效）":""}</div>`;
   html+=`<div class="result">合计消灭 ${total} 人${vehLost?` · 载具受损 ${vehLost} 次${vehDead?`（击毁 ${vehDead} 辆）`:""}`:""}</div></div>
     <div class="tip-note">※ 战果仅显示消灭人数、载具耐久损耗与敌方规模变化，具体兵种与剩余兵力不可侦察。</div>
     <div style="text-align:center"><button class="btn primary" data-action="close-modal">确定</button></div>`;
@@ -1555,31 +2493,40 @@ function showStrikeModal(cp,rep,lines,total,vehLost,vehDead){
 }
 function showVictory(){
   victoryShown=true;
+  takeSnapshot();
+  const an0=compareBattleOutcomes(0), an1=compareBattleOutcomes(1);
+  const kc0=enemyKnowledgeChain(0), kc1=enemyKnowledgeChain(1);
+  const zoneRow=(an)=>an.list.length?an.list.map(z=>`${z.zone}: ${z.wins}/${z.n} 胜（战损比 ${z.exchange}）`).join("，"):"无交战记录";
   modalShow(`<div class="victory ${winner===0?"red":"blue"}">
     <div style="font-size:40px">🏆</div>
     <div class="big">${SIDE_NAME[winner]} 获胜！</div>
     <div style="color:#607d8b;font-size:13px">共经历 ${turnNo} 个回合（第 ${dayNo()} 天）</div>
-    <button class="btn primary" style="margin-top:14px" data-action="new-game">再来一局</button>
+    <div style="margin-top:12px;text-align:left;background:rgba(0,0,0,0.05);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.7">
+      <b>📊 战术分析</b><br>
+      <b>红方</b>：${zoneRow(an0)}<br>
+      <span style="color:#607d8b">${an0.advice}</span><br>
+      <b>蓝方</b>：${zoneRow(an1)}<br>
+      <span style="color:#607d8b">${an1.advice}</span><br>
+      <span style="color:#607d8b">敌情推测链：红方布置被掌握 ${kc0.knownPct}% ｜ 蓝方布置被掌握 ${kc1.knownPct}%</span>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;justify-content:center">
+      <button class="btn" data-action="show-replay">📼 查看复盘</button>
+      <button class="btn primary" data-action="new-game">再来一局</button>
+    </div>
+    <div style="color:#90a4ae;font-size:12px;margin-top:8px">新一局开始前，随时可点顶部「📼 复盘」回看战斗记录。</div>
   </div>`);
 }
 
 /* ---------------- 渲染 ---------------- */
 function renderBoard(){
-  const ps = renderSide();                    // 渲染视角方（vs AI 时恒为玩家）
-  const godView = viewMode==="god" && aiSide<0;   // vs AI 下上帝视角不可用
+  const ps = renderSide();
+  const godView = viewMode==="god" && aiSide<0;
   const effSide = viewMode==="auto" ? ps : (godView ? -1 : (viewMode==="red" ? 0 : 1));
   const noFog = (phase!=="play") || godView;
   const visR = phase==="play" ? computeVision(0) : null;
   const visB = phase==="play" ? computeVision(1) : null;
   const vis = noFog ? null : (effSide===0 ? visR : visB);
   if(!noFog){ markSeen(0, visR); markSeen(1, visB); }
-  const misSet=new Map();
-  for(const m of pendingMissiles){
-    // 发射方始终可见自己的导弹落点；防守方仅当落点处于大本营雷达范围(5格)才可见
-    const [br,bc]=BASES[1-m.side];
-    if(ps===m.side || Math.abs(m.r-br)+Math.abs(m.c-bc)<=5)
-      misSet.set(key(m.r,m.c), m.side);
-  }
   let html="";
   html+=`<div class="lbl"></div>`;
   for(let c=0;c<N;c++) html+=`<div class="lbl">${c+1}</div>`;
@@ -1594,17 +2541,17 @@ function renderBoard(){
       if(v || dim) cls += " t-"+terrain[r][c] + (bridge[r][c]?" bridge":"");
       if(dim) cls += " fog-mem";
       if(!v && !dim) cls += " fog-unknown";
-      // 高亮
-      if(mode==="move"||mode==="move-choose"){
+      if(mode==="move"){
         if(modeData.empties && modeData.empties.has(k)) cls+=" hl-move";
-        else if(modeData.corpsCells && modeData.corpsCells.has(k))
-          cls+= modeData.corpsCells.get(k).type==="attack" ? " hl-attack" : " hl-ally";
+        else if(modeData.corpsCells && modeData.corpsCells.has(k)) cls+=" hl-attack";
       }
+      if(mode==="charge" && modeData.cells && modeData.cells.has(k)) cls+=" hl-charge";
       if(mode==="build" && modeData.cells && modeData.cells.has(k)) cls+=" hl-build";
       if((mode==="destroy"||mode==="demolish") && modeData.cells && modeData.cells.has(k)) cls+=" hl-fort";
       if(mode==="split-place" && modeData.spots && modeData.spots.has(k)) cls+=" hl-build";
       if(mode==="strike" && modeData.cells && modeData.cells.has(k)) cls+=" hl-strike";
-      if((mode==="flare"||mode==="smoke"||mode==="missile") && modeData.cells && modeData.cells.has(k)) cls+=" hl-throw";
+      if((mode==="flare"||mode==="smoke") && modeData.cells && modeData.cells.has(k)) cls+=" hl-throw";
+      if(mode==="bomb" && modeData.cells && modeData.cells.has(k)) cls+=" hl-strike";
       if(godView && visR.has(k) && visB.has(k)) cls+=" god-rb";
       else if(godView && visR.has(k)) cls+=" god-r";
       else if(godView && visB.has(k)) cls+=" god-b";
@@ -1615,40 +2562,47 @@ function renderBoard(){
         if(Math.abs(sp0.r-r)+Math.abs(sp0.c-c)<=vv) cls+=" hl-vision";
       }
       if(sp0 && sp0.alive && sp0.r===r && sp0.c===c) cls+=" selected";
-      if(phase==="play" && r===cur.r && c===cur.c) cls+=" cursor";
+      if(phase==="play" && cur && r===cur.r && c===cur.c) cls+=" cursor";
 
       let title=`(${r+1},${c+1})`;
       if(v) title+=" "+T_NAME[terrain[r][c]]+(bridge[r][c]?" · 桥":"");
       else title+=" 未探明";
-      if(v && fort[r][c]) title+=" · 有防御工事";
-      if(v && bunker[r][c]>0) title+=` · 防空地堡(耐久${bunker[r][c]}/3)`;
-      if(v && bunkerDead[r][c] && bunker[r][c]<=0) title+=" · 地堡废墟(不可再建)";
+      if(v){
+        const es=edgesTouching(r,c).filter(getFort);
+        if(es.length) title+=` · ${es.length}段防御工事`;
+        if(bunker[r][c]>0) title+=` · 防空地堡(耐久${bunker[r][c]}/3)`;
+        if(bunkerDead[r][c]&&bunker[r][c]<=0) title+=" · 地堡废墟(不可再建)";
+      }
 
       let inner="";
-      // 效果层
       if(inFlare(r,c)) inner+=`<span class="fx fx-flare"></span>`;
       if(smokeLeft[r][c]>0) inner+=`<span class="fx fx-smoke"></span>`;
-      // 大本营
       if(isBase(r,c)) inner+=`<span class="base-tag">营</span>`;
-      if(v && fort[r][c]) inner+=`<span class="fort-tag">#</span>`;
-      if(v && bunker[r][c]>0) inner+=`<span class="bunk-tag">堡</span>`;
+      if(v){
+        if(fortH[r][c]) inner+=`<span class="fort-edge fe-h"></span>`;
+        if(fortV[r][c]) inner+=`<span class="fort-edge fe-v"></span>`;
+        if(r>0&&fortV[r-1][c]) inner+=`<span class="fort-edge fe-v" style="bottom:auto;top:-2px"></span>`;
+        if(c>0&&fortH[r][c-1]) inner+=`<span class="fort-edge fe-h" style="right:auto;left:-2px"></span>`;
+        if(bunker[r][c]>0) inner+=`<span class="bunk-tag">堡</span>`;
+      }
 
-      // 单位
       const stack = corps.filter(p=>p.alive && p.r===r && p.c===c);
       const own = stack.filter(p=>p.side===ps || godView);
       const foes = stack.filter(p=>!godView && p.side!==ps && unitVisibleTo(p,ps,vis||new Set()));
       if(own.length){
         let show=own[0];
-        if(sp0 && sp0.alive && sp0.side===current && sp0.r===r && sp0.c===c && own.includes(sp0)) show=sp0;
+        if(sp0 && sp0.alive && sp0.r===r && sp0.c===c && own.includes(sp0)) show=sp0;
         const st=[];
         if(show.resting) st.push("休整中");
-        if(show.fatigue>0) st.push("下回合不能移动");
+        if(show.fatigue>0) st.push("需修整");
+        if(show.lockAtk&&coLocatedEnemy(show)) st.push("交战(只能战斗)");
+        if(show.lockDef&&coLocatedEnemy(show)) st.push("交战(可撤退/战斗)");
         if(U(show).air) st.push("空中单位");
-        if(U(show).dur) st.push("耐久"+show.dur+"/3");
+        if(U(show).dur) st.push("耐久"+show.dur+"/"+U(show).dur);
         if(show.type==="katyusha") st.push(show.ammo?"已装填":"未装填");
-        if(U(show).throwable) st.push(`照明${show.flare}/烟雾${show.smoke}`);
-        if(U(show).missile) st.push(`导弹${show.missile}`);
-        title+=` · ${godView ? SIDE_NAME[show.side] : "我方"} ${typeName(show.type)}#${show.id} x${show.troops}${st.length?" · "+st.join("/"):""}`;
+        if(U(show).throwable) st.push(`照明${show.flare}/${U(show).flareMax} 烟${show.smoke}/${U(show).smokeMax}`);
+        if(U(show).bombMax) st.push(`炸弹${show.bombs}/${U(show).bombMax}`);
+        title+=` · ${godView ? SIDE_NAME[show.side] : "我方"} ${typeName(show.type)} x${show.troops}${st.length?" · "+st.join("/"):""}`;
         if(own.length>1) title+=`（本格共 ${own.length} 支我方兵团）`;
         inner+=`<span class="corps ${show.side===0?"red":"blue"}${U(show).air?" air":""}${acted.has(show.id)?" acted":""}">${U(show).ch}</span>`;
         if(own.length>1) inner+=`<span class="stack">×${own.length}</span>`;
@@ -1663,24 +2617,21 @@ function renderBoard(){
         if(foes.length>1) inner+=`<span class="stack">×${foes.length}</span>`;
         if(anyRest) inner+=`<span class="dot rest"></span>`;
       }
-      // 遭遇战预警：无近战能力单位走入有近战能力的敌军格 → 将被全歼
-      if(v && (mode==="move"||mode==="move-choose") && modeData.corpsCells && modeData.corpsCells.has(k)){
+      if(v && (mode==="move") && modeData.corpsCells && modeData.corpsCells.has(k)){
         const mc=modeData.corpsCells.get(k);
         const mover=getCorps(modeData.id);
-        if(mover && mc.type==="attack" && !U(mover).melee){
+        if(mover && !meleeCapable(mover)){
           cls+=" hl-attack";
-          title+=" ⚠ 突入即被全歼（"+typeName(mover.type)+"无近战能力）";
+          title+=" ⚠ 该单位无战斗力，不能冲锋";
         }
       }
-      // 导弹预警
-      if(misSet.has(k)) inner+=`<span class="missile-mark">⊕</span>`;
       html+=`<div class="${cls}" data-cell="${r},${c}" title="${title}">${inner}</div>`;
     }
   }
   document.getElementById("board").innerHTML=html;
 }
 function renderPanel(){
-  const ps = renderSide();            // vs AI 时恒为玩家侧
+  const ps = renderSide();
   const chip=document.getElementById("turnChip");
   chip.textContent=SIDE_NAME[current]+"行动"+(aiBusy?" · 🤖 AI 行动中":"");
   chip.className="turn-chip "+(current===0?"red":"blue");
@@ -1690,7 +2641,16 @@ function renderPanel(){
   dc.textContent = isDay() ? "☀ 白天" : "🌙 夜晚";
   dc.className = "day-chip "+(isDay()?"day":"night");
 
-  // 空中威胁预警
+  /* 结束回合按钮提示：全部单位行动完毕后高亮 */
+  const etb=document.getElementById("endTurnBtn");
+  if(etb&&phase==="play"&&!gameOver){
+    const mine=corps.filter(p=>p.alive&&p.side===current);
+    const allActed=mine.length>0&&mine.every(p=>acted.has(p.id));
+    etb.textContent = allActed ? "✓ 结束回合" : "结束回合";
+    etb.classList.toggle("primary", allActed);
+  } else if(etb){ etb.textContent="结束回合"; etb.classList.remove("primary"); }
+
+  /* 空中威胁预警 */
   const thCard=document.getElementById("threatCard");
   const th=document.getElementById("threatText");
   let threat=false;
@@ -1707,7 +2667,7 @@ function renderPanel(){
     th.textContent="⚠ 空中威胁：侦测到敌方空中单位活动（距我方某兵团 ≤3 格），但无法定位与攻击。";
   } else thCard.style.display="none";
 
-  // 选中信息
+  /* 选中信息 */
   const info=document.getElementById("selInfo"), cmdArea=document.getElementById("cmdArea");
   const cp = selId!=null ? getCorps(selId) : null;
   if(!cp||!cp.alive){
@@ -1716,87 +2676,113 @@ function renderPanel(){
   } else {
     const u=U(cp);
     const own = cp.side===ps;
-    const canCmd = own && !acted.has(cp.id) && !gameOver && mode==="idle";
+    const canCmd = own && !acted.has(cp.id) && !gameOver && mode==="idle" && !aiBusy;
+    const lockedA = cp.lockAtk&&coLocatedEnemy(cp);
+    const lockedD = cp.lockDef&&coLocatedEnemy(cp);
     const st=[];
     if(cp.resting) st.push(`<span class="badge rest">休整中</span>`);
-    if(cp.fatigue>0) st.push(`<span class="badge fat">下回合不能移动</span>`);
+    if(cp.fatigue>0) st.push(`<span class="badge fat">需修整</span>`);
+    if(lockedA) st.push(`<span class="badge lock">交战·只能战斗</span>`);
+    if(lockedD) st.push(`<span class="badge lock">交战·可撤退</span>`);
     if(u.air) st.push(`<span class="badge air">空中</span>`);
-    if(u.dur) st.push(`<span class="badge dur">耐久 ${cp.dur}/3</span>`);
+    if(u.dur) st.push(`<span class="badge dur">耐久 ${cp.dur}/${u.dur}</span>`);
     if(acted.has(cp.id)) st.push(`<span class="badge done">已行动</span>`);
     const extra=[];
     extra.push(`视野 ${visionRange(cp)} 格`);
-    if(u.ranged) extra.push(`打击射程 ${strikeRange(cp)} 格`);
+    if(u.ranged) extra.push(`射程 ${strikeRange(cp)} 格`);
     if(cp.type==="katyusha") extra.push(cp.ammo?"弹药已装填":"未装填");
-    if(u.throwable) extra.push(`照明弹 ${cp.flare} / 烟雾弹 ${cp.smoke}`);
-    if(u.missile) extra.push(`导弹 ${cp.missile}`);
-    info.innerHTML=`<b style="color:var(--${cp.side===0?"red":"blue"})">${corpsLabel(cp)}</b>
+    if(u.throwable) extra.push(`照明弹 ${cp.flare}/${u.flareMax} · 烟雾弹 ${cp.smoke}/${u.smokeMax}`);
+    if(u.bombMax) extra.push(`炸弹 ${cp.bombs}/${u.bombMax}`);
+    info.innerHTML=`<b style="color:var(--${cp.side===0?"red":"blue"})">${SIDE_NAME[cp.side]}·${typeName(cp.type)}</b>
       兵力 <b>${cp.troops}</b> @ ${posStr(cp)} ${st.join(" ")}<br>
       <span style="color:#607d8b;font-size:12px">${extra.join(" · ")}</span>`;
     if(!canCmd){
       cmdArea.innerHTML=`<span style="color:#90a4ae;font-size:12px">${
-        gameOver?"游戏已结束": !own?"对方兵团（仅可查看规模）": acted.has(cp.id)?"该军团本回合已行动。":"请先结束当前操作"}</span>`;
+        gameOver?"游戏已结束（可查看复盘）": !own?"对方兵团（仅可查看规模）": acted.has(cp.id)?"该军团本回合已行动。":"请先结束当前操作"}</span>`;
     } else {
       let cmdN=0;
       const btn=(label,action,dis,tip)=>{ cmdN++; return `<button class="btn small" data-action="${action}" ${dis?"disabled":""} title="${tip||""}">${cmdN}. ${label}</button>`; };
       let html="";
-      html+=btn("移动","cmd-move", cp.fatigue>0&&cp.type==="scout", cp.type==="scout"?"侦察兵1~2格，可奔袭3格（下回合不能移动）":`最多 ${u.move} 格`);
-      html+=btn("分兵","cmd-split", cp.troops<6, "新军团不少于5");
-      html+=btn("合兵","cmd-merge", mergeCandidates(cp).length===0, "与相邻同兵种友军合并");
-      if(u.canRest) html+=btn(cp.resting?"解除休整":"休整","cmd-rest", false, "受击损耗减半");
-      if(u.ranged){
-        let dis=!canStrike(cp), tip=strikeHint(cp)||`射程 ${strikeRange(cp)} 格`;
-        if(cp.type==="katyusha") tip="装填后才可打击（3×3面杀伤）";
-        html+=btn("打击","cmd-strike", dis, tip);
+      if(lockedA){
+        html+=btn("战斗","cmd-fight", false, "与共格敌军继续交战（按冲锋战力公式）");
+        cmdArea.innerHTML=html; 
+      } else if(cp.fatigue>0){
+        html+=btn("修整","cmd-rest", false, "冲锋后本回合只能修整");
+        html+=btn("战斗","cmd-fight", !coLocatedEnemy(cp), "贴身战斗不受修整限制");
+        cmdArea.innerHTML=html;
+      } else if(lockedD){
+        html+=btn("战斗","cmd-fight", false, "与共格敌军继续交战");
+        html+=btn("撤退移动","cmd-move", false, "被攻击的防守方可选择移动脱离");
+        cmdArea.innerHTML=html;
+      } else {
+        html+=btn("移动/冲锋","cmd-move", false, `正常 ${u.move} 格，冲锋 ${u.charge} 格（下回合需修整）`);
+        if(!u.scout&&meleeCapable(cp)) html+=btn("集体冲锋","cmd-charge", false, "选择目标点，本回合能赶到的己方步骑一起冲");
+        html+=btn("分兵","cmd-split", cp.troops<6, "四邻放置；新军团本回合视为已行动");
+        html+=btn("合兵","cmd-merge", mergeCandidates(cp).length===0, "与相邻同兵种友军合并");
+        if(u.canRest) html+=btn(cp.resting?"解除休整":"休整","cmd-rest", false, "受击密度相关加成/冲锋恢复");
+        if(u.ranged){
+          let dis=!canStrike(cp), tip=strikeHint(cp)||`射程 ${strikeRange(cp)} 格`;
+          html+=btn("打击","cmd-strike", dis, tip);
+        }
+        if(cp.type==="katyusha") html+=btn("装填弹药","cmd-load", !!cp.ammo, cp.ammo?"已装填":"花一回合装填，之后移动不必再装");
+        if(cp.type==="inf"){
+          html+=btn("修筑工事","cmd-build", !cp.resting||buildCells(cp).size===0, "需休整，修在己格与邻格之间");
+          html+=btn("摧毁工事","cmd-destroy", !cp.resting||fortCells(cp).size===0, "需休整，相邻格间工事");
+          const canB = cp.resting && bunker[cp.r][cp.c]<=0 && !bunkerDead[cp.r][cp.c];
+          html+=btn("修筑防空地堡","cmd-bunker", !canB, "需休整，在自身格");
+          if(cp.troops>50&&(fortCells(cp).size||bunker[cp.r][cp.c]>0))
+            html+=btn("直接拆除","cmd-demolish50", false, "50人以上步兵团直接拆除相邻工事与地堡");
+        }
+        if(cp.type==="cav") html+=btn("拆毁工事","cmd-demolish", fortCells(cp).size===0, "拆毁相邻格间工事");
+        if(u.throwable){
+          html+=btn("照明弹","cmd-flare", cp.flare<=0, `投程${u.throwRange}格，3×3照明区（双方可见），可多投`);
+          html+=btn("烟雾弹","cmd-smoke", cp.smoke<=0, `投程${u.throwRange}格，3×3烟幕，可多投`);
+        }
+        if(u.bombMax) html+=btn("投弹","cmd-bomb", cp.bombs<=0, `${u.bombRange}格内轰炸，密度50%~75%+随机`);
+        html+=btn("战斗","cmd-fight", !coLocatedEnemy(cp), "与共格敌军交战");
+        cmdArea.innerHTML=html;
       }
-      if(cp.type==="katyusha") html+=btn("装填弹药","cmd-load", false, "花一回合装填，之后可随时打击");
-      if(cp.type==="inf"){
-        html+=btn("修筑工事","cmd-build", !cp.resting||buildCells(cp).size===0, "需休整，相邻格");
-        html+=btn("摧毁工事","cmd-destroy", !cp.resting||fortCells(cp).size===0, "需休整，相邻格");
-        const canB = cp.resting && bunker[cp.r][cp.c]<=0 && !bunkerDead[cp.r][cp.c];
-        html+=btn("修筑防空地堡","cmd-bunker", !canB, "需休整，在自身格");
-      }
-      if(cp.type==="cav") html+=btn("拆毁工事","cmd-demolish", fortCells(cp).size===0, "拆毁相邻工事");
-      if(u.throwable){
-        html+=btn("照明弹","cmd-flare", cp.flare<=0, "3×3照明区，持续5回合");
-        html+=btn("烟雾弹","cmd-smoke", cp.smoke<=0, "3×3烟幕，持续5回合");
-      }
-      if(u.missile) html+=btn("发射导弹","cmd-missile", cp.missile<=0, "下一回合命中；无地堡则全歼");
-      cmdArea.innerHTML=html;
     }
   }
 
-  // 模式框
+  /* 模式框 */
   const modeCard=document.getElementById("modeCard"), mb=document.getElementById("modeBox");
   if(mode==="idle"){ modeCard.style.display="none"; }
   else{
     modeCard.style.display="block";
     let html=`<button class="btn small" data-action="cancel-mode" style="float:right">取消 (Esc)</button>`;
-    if(mode==="move") html+=`<div>移动模式：<b>WASD 选落点，Enter 确认</b>（或点击 <b>黄色</b>空格 / <b style="color:#00bcd4">青色</b>己方格）。步数上限 ${modeData.steps}。<br>
-      <span style="color:#b03a2e">若走入不可见敌军的格子，将立即触发遭遇战；侦察兵奔袭3格需二次确认。</span></div>`;
+    html+=`<div style="color:#607d8b;font-size:12px;margin-bottom:6px">🖱️ 键鼠兼容：鼠标悬停即定位光标、点击直接确认；也可 <b>WASD/方向键</b> 微调 + <b>Enter</b> 确认，两种方式随时混用。</div>`;
+    if(mode==="move") html+=`<div>移动模式：<b>WASD 选落点，Enter 确认</b>（或点击 <b>黄色</b>空格 / <b style="color:#ff1744">红色</b>敌格冲锋）。正常 ${U(getCorps(modeData.id)||{type:"inf"}).move} 格，超出即冲锋（下回合修整）。<br>
+      <span style="color:#b03a2e">跨过工事边后只能再走1格；冲入敌军格即触发交战。</span></div>`;
     else if(mode==="split-amount"){ const c=getCorps(modeData.id);
       html+=`<div>分出兵力（5 ~ ${c?c.troops-1:0}）：<input type="number" id="splitNum" min="5" value="5">
         <button class="btn small primary" data-action="split-confirm">确定</button></div>`; }
-    else if(mode==="split-place") html+=`<div>点击棋盘上<b>绿色高亮</b>相邻空格放置新军团（${modeData.n}）；或 <b>WASD 选位 + Enter</b>。</div>`;
+    else if(mode==="split-place") html+=`<div>点击棋盘上<b>绿色高亮</b>的相邻空格（仅上下左右四格）放置新军团（${modeData.n}）；或 <b>WASD 选位 + Enter</b>。新军团本回合视为已行动。</div>`;
     else if(mode==="merge") html+=`<div>选择合并目标：</div><div class="targets">`+
       modeData.cands.map((id,i)=>{const o=getCorps(id);
-        return `<button class="btn small" data-action="merge-${i}">#${o.id} ${typeName(o.type)} x${o.troops} @ ${posStr(o)}</button>`;}).join("")+`</div>`;
+        return `<button class="btn small" data-action="merge-${i}">${typeName(o.type)} x${o.troops} @ ${posStr(o)}</button>`;}).join("")+`</div>`;
     else if(mode==="strike"){
       const cp2=getCorps(modeData.id);
-      html+=`<div>打击模式：<b>WASD 选目标，Enter 确认</b>（或点击<b style="color:#d500f9">紫色高亮</b>格子，射程 ${cp2?strikeRange(cp2):0} 格 · 可盲打）。${cp2&&cp2.type==="katyusha"?"将以该格为中心发动 3×3 面杀伤。":""}<br>
-        <span style="color:#607d8b">该格防御工事会被摧毁；防空地堡与休整/高地均使损耗减半。</span></div>`;
+      html+=`<div>打击模式：<b>WASD 选目标，Enter 确认</b>（或点击<b style="color:#d500f9">紫色高亮</b>格子，射程 ${cp2?strikeRange(cp2):0} 格 · 可盲打）。${cp2&&U(cp2).area?"将以该格为中心发动 3×3 面杀伤。":""}<br>
+        <span style="color:#607d8b">相邻格间工事按密度%判定损毁；防空地堡使伤害密度减半并按密度%掉耐久。</span></div>`;
     }
-    else if(mode==="build") html+=`<div>修筑工事：点击<b>绿色高亮</b>相邻格；或 <b>WASD + Enter</b>。</div>`;
-    else if(mode==="destroy") html+=`<div>摧毁工事：点击<b>橙色高亮</b>相邻工事格；或 <b>WASD + Enter</b>。</div>`;
-    else if(mode==="demolish") html+=`<div>骑兵拆毁工事：点击<b>橙色高亮</b>相邻工事格；或 <b>WASD + Enter</b>。</div>`;
-    else if(mode==="bunker") html+=`<div>修筑防空地堡：<b>Enter</b> 或点击自身所在格。地堡可减半炮兵/载具打击伤害，承受 3 次打击后永久失效。</div>`;
-    else if(mode==="flare") html+=`<div>投掷照明弹：点击<b>青色高亮</b>视野内格子，或 <b>WASD + Enter</b>，形成 3×3 照明区（持续5回合，区内兵团全图可见）。</div>`;
-    else if(mode==="smoke") html+=`<div>投掷烟雾弹：点击<b>青色高亮</b>视野内格子，或 <b>WASD + Enter</b>，形成 3×3 烟幕（持续5回合，区外不可窥视）。</div>`;
-    else if(mode==="missile") html+=`<div>发射导弹：点击<b>青色高亮</b>格子，或 <b>WASD + Enter</b>（射程内 · 可盲打）。导弹将于下一回合命中，该格若无防空地堡则所有单位被全歼。<br>
-      <span style="color:#b03a2e">注意：导弹敌我不分，该格上的己方单位同样会被消灭。</span></div>`;
+    else if(mode==="charge"){ const cp2=getCorps(modeData.id);
+      html+=`<div><b>集体冲锋</b>：点击<b style="color:#ff5722">橙色高亮</b>目标格（冲锋范围内，含敌军格）。系统会自动集结本回合能赶到的全部己方步骑一起冲入。</div>`; }
+    else if(mode==="charge-go"){
+      html+=`<div>目标 (${modeData.target[0]+1},${modeData.target[1]+1})，参战兵团 ${modeData.ids.length} 支：</div>
+        <div class="targets">${modeData.ids.map(id=>{const o=getCorps(id);return o?`<span>· ${typeName(o.type)} x${o.troops} @ ${posStr(o)}</span>`:"";}).join("")}</div>
+        <button class="btn small warn" data-action="charge-go" style="margin-top:6px">🎺 发起冲锋</button></div>`; }
+    else if(mode==="build") html+=`<div>修筑工事：点击<b>绿色高亮</b>邻格，工事修在己格与该格<b>之间</b>；或 <b>WASD + Enter</b>。</div>`;
+    else if(mode==="destroy") html+=`<div>摧毁工事：点击<b>橙色高亮</b>相邻格间工事；或 <b>WASD + Enter</b>。</div>`;
+    else if(mode==="demolish") html+=`<div>骑兵拆毁工事：点击<b>橙色高亮</b>相邻格间工事；或 <b>WASD + Enter</b>。</div>`;
+    else if(mode==="bunker") html+=`<div>修筑防空地堡：<b>Enter</b> 或点击自身所在格。地堡使格内单位所受火力密度减半，耐久3点。</div>`;
+    else if(mode==="flare") html+=`<div>投掷照明弹：点击<b>青色高亮</b>格选择/取消落点（可多枚，剩余 ${getCorps(modeData.id)?getCorps(modeData.id).flare:0} 枚），然后<button class="btn small primary" data-action="throw-done" style="margin:0 4px">完成投掷</button>。3×3 照明区持续5回合，<b>双方可见</b>。</div>`;
+    else if(mode==="smoke") html+=`<div>投掷烟雾弹：点击<b>青色高亮</b>格选择/取消落点（可多枚，剩余 ${getCorps(modeData.id)?getCorps(modeData.id).smoke:0} 枚），然后<button class="btn small primary" data-action="throw-done" style="margin:0 4px">完成投掷</button>。3×3 烟幕持续5回合。</div>`;
+    else if(mode==="bomb") html+=`<div>轰炸：<b>WASD + Enter</b> 或点击<b style="color:#d500f9">紫色高亮</b>格（${U(getCorps(modeData.id)||{type:"bomber"}).bombRange} 格内）。密度 50%~75% 随机 + 0~25 随机；对耐久按密度%判定。剩余炸弹 ${getCorps(modeData.id)?getCorps(modeData.id).bombs:0}。</div>`;
     mb.innerHTML=html;
   }
 
-  // 己方军团列表
+  /* 己方军团列表 */
   const list=document.getElementById("corpsList");
   let lhtml="";
   const mine=corps.filter(p=>p.alive&&p.side===current);
@@ -1805,7 +2791,7 @@ function renderPanel(){
     const u=U(p);
     const badges=[];
     if(p.resting) badges.push(`<span class="badge rest">休整</span>`);
-    if(p.fatigue>0) badges.push(`<span class="badge fat">疲劳</span>`);
+    if(p.fatigue>0) badges.push(`<span class="badge fat">修整</span>`);
     if(u.air) badges.push(`<span class="badge air">空中</span>`);
     if(u.dur) badges.push(`<span class="badge dur">耐${p.dur}</span>`);
     if(acted.has(p.id)) badges.push(`<span class="badge done">已行动</span>`);
@@ -1813,12 +2799,12 @@ function renderPanel(){
     const dim=acted.has(p.id)?" dim":"";
     lhtml+=`<div class="corps-row${sel}${dim}" data-action="select" data-id="${p.id}">
       <span class="mini ${u.air?"air":(p.side===0?"red":"blue")}">${u.ch}</span>
-      <span>#${p.id} ${typeName(p.type)} <b>x${p.troops}</b> @ ${posStr(p)}</span>
+      <span>${typeName(p.type)} <b>x${p.troops}</b> @ ${posStr(p)}</span>
       <span style="margin-left:auto">${badges.join("")}</span></div>`;
   }
   list.innerHTML=lhtml;
 
-  // 已发现的敌方兵团
+  /* 已发现的敌方兵团（仅规模） */
   const vis=computeVision(current);
   const eCard=document.getElementById("enemyCard"), eList=document.getElementById("enemyList");
   const groups=new Map();
@@ -1850,6 +2836,7 @@ function render(){ renderBoard(); renderPanel(); }
 document.addEventListener("click", e=>{
   const btn=e.target.closest("[data-action]");
   if(!btn) return;
+  if(btn.blur) btn.blur();                                     // 防止回车误触上一次点击的按钮（如结束回合）
   const act=btn.dataset.action;
   if(act==="deploy-start"){ phase="deploy"; renderDeploy(); return; }
   if(act==="deploy-recommend"){ readDeployInputs(); deployCfg=Object.assign(deployConfigDefaults(), RECOMMEND); renderDeploy(); return; }
@@ -1858,51 +2845,74 @@ document.addEventListener("click", e=>{
   if(act==="new-game"){ newGame(); return; }
   if(act==="close-modal"){ closeModal(); if(gameOver&&!victoryShown) showVictory(); return; }
   if(act==="view-toggle"){ cycleViewMode(); return; }
-  if(act==="ai-fast"){ if(aiBusy) aiFastForward(); return; }   // 快进：AI 回合中随时可用
+  if(act==="ai-fast"){ if(aiBusy) aiFastForward(); return; }
+  if(act==="show-replay"){ showReplay(); return; }
+  if(act==="rp-prev"){ stepReplay(-1); return; }
+  if(act==="rp-next"){ stepReplay(1); return; }
   if(phase!=="play") return;
-  if(aiBusy) return;                                           // AI 行动中锁定其余操作
+  if(aiBusy) return;
   const cp = selId!=null ? getCorps(selId) : null;
   if(act==="select"){ if(viewLocked()) return; const p=getCorps(+btn.dataset.id); if(p&&p.alive){ selId=p.id; if(mode!=="idle") cancelMode(); render(); } return; }
   if(act==="end-turn") return endTurn();
   if(act==="cancel-mode") return cancelMode();
+  if(act==="charge-go") return confirmCharge();
+  if(act==="throw-done") return confirmThrow();
+  if(act==="split-confirm") return confirmSplit();
   if(gameOver) return;
   if(act==="cmd-move"&&cp) return startMove(cp);
   if(act==="cmd-split"&&cp) return startSplit(cp);
-  if(act==="split-confirm") return confirmSplit();
+  if(act==="cmd-charge"&&cp) return startGroupCharge(cp);
   if(act==="cmd-merge"&&cp) return startMerge(cp);
   if(act.startsWith("merge-")) return doMerge(+act.slice(6));
   if(act==="cmd-rest"&&cp) return doRest(cp);
+  if(act==="cmd-fight"&&cp) return startFight(cp);
   if(act==="cmd-strike"&&cp) return startStrike(cp);
-  if(act==="cmd-load"&&cp){ cp.ammo=true; log(`${corpsLabel(cp)} 完成弹药装填，可随时发动打击。`, cp.side===0?"red":"blue");
-    acted.add(cp.id); mode="idle"; modeData={}; return afterCommand(); }
+  if(act==="cmd-load"&&cp) return doLoad(cp);
   if(act==="cmd-build"&&cp) return startBuild(cp);
   if(act==="cmd-destroy"&&cp) return startDestroy(cp);
+  if(act==="cmd-demolish50"&&cp) return doDemolish50(cp);
   if(act==="cmd-bunker"&&cp) return startBunker(cp);
   if(act==="cmd-demolish"&&cp) return startDemolish(cp);
   if(act==="cmd-flare"&&cp) return startThrow(cp,"flare");
   if(act==="cmd-smoke"&&cp) return startThrow(cp,"smoke");
-  if(act==="cmd-missile"&&cp) return startMissile(cp);
+  if(act==="cmd-bomb"&&cp) return startBomb(cp);
 });
 document.getElementById("board").addEventListener("click", e=>{
   const cell=e.target.closest("[data-cell]");
   if(!cell || phase!=="play" || gameOver || viewLocked()) return;
   const [r,c]=cell.dataset.cell.split(",").map(Number);
+  cur={r,c};                                  // 鼠标与键盘光标合一：点击处即光标位置，WASD 可从此继续微调
   if(mode==="move") return boardMove(r,c);
   if(mode==="split-place") return boardSplitPlace(r,c);
   if(mode==="build"||mode==="destroy"||mode==="demolish") return boardFortOp(r,c);
   if(mode==="bunker") return boardBunker(r,c);
   if(mode==="strike") return boardStrike(r,c);
   if(mode==="flare"||mode==="smoke") return boardThrow(r,c);
-  if(mode==="missile") return boardMissile(r,c);
+  if(mode==="bomb") return boardBomb(r,c);
+  if(mode==="charge") return boardChargeTarget(r,c);
   // idle：选择己方兵团
   const stack=corps.filter(p=>p.alive && p.r===r && p.c===c && p.side===current);
   if(stack.length){
     let pick=stack.find(p=>p.id===selId) || stack.find(p=>!acted.has(p.id)) || stack[0];
-    selId=pick.id; cur={r,c}; render();        // 键盘光标跟随鼠标选中位置
+    selId=pick.id; render();
   } else if(corps.some(p=>p.alive&&p.r===r&&p.c===c)){
-    // 点到敌方（或不可见格）→ 清空选择
     selId=null; render();
   }
+});
+document.getElementById("board").addEventListener("mousemove", e=>{
+  const cell=e.target.closest("[data-cell]");
+  if(!cell || phase!=="play" || gameOver || viewLocked() || aiBusy) return;
+  const [r,c]=cell.dataset.cell.split(",").map(Number);
+  if(cur && cur.r===r && cur.c===c) return;
+  cur={r,c};                                  // 悬停跟随：光标实时贴合鼠标位置
+  const prev=document.querySelector("#board .cell.cursor");
+  if(prev) prev.classList.remove("cursor");   // 只切换高亮类，避免全盘重绘
+  cell.classList.add("cursor");
+});
+document.getElementById("board").addEventListener("mouseleave", ()=>{
+  if(!cur) return;
+  const prev=document.querySelector("#board .cell.cursor");
+  if(prev) prev.classList.remove("cursor");
 });
 document.addEventListener("keydown", e=>{
   if(e.altKey||e.ctrlKey||e.metaKey) return;
@@ -1913,11 +2923,17 @@ document.addEventListener("keydown", e=>{
   if(phase!=="play" || gameOver || viewLocked()) return;
   const dir={w:[-1,0],s:[1,0],a:[0,-1],d:[0,1],ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]};
   if(dir[k]){
+    if(!cur) cur = selId!=null&&getCorps(selId) ? {r:getCorps(selId).r,c:getCorps(selId).c} : {r:Math.floor(N/2),c:Math.floor(N/2)};
     cur={r:Math.max(0,Math.min(N-1,cur.r+dir[k][0])), c:Math.max(0,Math.min(N-1,cur.c+dir[k][1]))};
     render(); return;
   }
   if(k==="Enter"){
     if(e.repeat) return;
+    if(!cur){                                    // 鼠标点选命令后未动光标：以选中单位所在格为基准
+      const cp0=selId!=null?getCorps(selId):null;
+      if(!cp0) return;
+      cur={r:cp0.r,c:cp0.c};
+    }
     if(mode==="idle"){
       const stack=corps.filter(p=>p.alive && p.r===cur.r && p.c===cur.c && p.side===current);
       if(stack.length){
@@ -1929,7 +2945,7 @@ document.addEventListener("keydown", e=>{
     }
     if(mode==="move") return boardMove(cur.r,cur.c);
     const tbl={ strike:boardStrike, "split-place":boardSplitPlace, build:boardFortOp, destroy:boardFortOp,
-                demolish:boardFortOp, bunker:boardBunker, flare:boardThrow, smoke:boardThrow, missile:boardMissile };
+                demolish:boardFortOp, bunker:boardBunker, flare:boardThrow, smoke:boardThrow, bomb:boardBomb, charge:boardChargeTarget };
     if(tbl[mode]) return tbl[mode](cur.r,cur.c);
     return;
   }
@@ -1941,7 +2957,8 @@ document.addEventListener("keydown", e=>{
       if(b&&!b.disabled){
         const cp=getCorps(selId);
         b.click();
-        if(cp) cur={r:cp.r,c:cp.c};
+        const after=selId!=null?getCorps(selId):null;
+        cur=after?{r:after.r,c:after.c}:null;   // 命令后光标贴合单位当前位置，键盘可继续操作
         render();
       }
     }
@@ -1954,18 +2971,17 @@ document.getElementById("modeSel").addEventListener("change", e=>{
   const v=parseInt(e.target.value,10);
   if(v===aiSide) return;
   aiSide=v;
-  newGame();                 // 切换模式即重开局（AI 红方会自动部署）
+  newGame();
 });
 document.getElementById("aiDiffSel").addEventListener("change", e=>{
-  aiDiff=e.target.value;     // 难度对局中随时切换，立即影响 AI 后续决策
+  aiDiff=e.target.value;
   log(`⚙ AI 难度已调整为「${aiProf().label}」（对局中即时生效）。`, "sys", null);
 });
 document.addEventListener("input", e=>{
-  if(e.target && e.target.dataset && e.target.dataset.dt){ readDeployInputs(); updateDeployLeft(); }
+  if(e.target && e.target.dataset && (e.target.dataset.dt||e.target.dataset.bud)){ readDeployInputs(); updateDeployLeft(); }
 });
 
-/* ---------------- 上帝视角 ---------------- */
-/* 渲染视角方：vs AI 时恒为玩家侧——AI 的行动、视野、内部状态对玩家隐藏 */
+/* ---------------- 视角 ---------------- */
 function renderSide(){ return aiSide>=0 ? 1-aiSide : current; }
 function viewLocked(){
   if(aiBusy) return true;
@@ -1982,7 +2998,7 @@ function renderViewBtn(){
   }
 }
 function cycleViewMode(){
-  if(aiSide>=0){                       // vs AI：锁定己方视角，禁止上帝/AI 侧视角（防窥探 AI）
+  if(aiSide>=0){
     viewMode="auto"; renderViewBtn(); render(); return;
   }
   const order=["auto","red","blue","god"];
