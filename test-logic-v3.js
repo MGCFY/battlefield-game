@@ -5,7 +5,7 @@ const fs = require("fs");
 const vm = require("vm");
 const path = require("path");
 
-const html = fs.readFileSync(path.join(__dirname, "battlefield-v3.html"), "utf8");
+const html = fs.readFileSync(path.join(__dirname, "battlefield-v3.6.1.html"), "utf8");
 const m = html.match(/<script>([\s\S]*?)<\/script>/);
 if (!m) { console.error("未找到脚本"); process.exit(1); }
 let code = m[1].replace(/\nnewGame\(\);\s*$/, "\n");
