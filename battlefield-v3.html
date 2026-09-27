@@ -1760,6 +1760,8 @@ const AI_PROFILES = {
   hard:   { label:"困难", restP:.05, buildP:.16, aimP:.96, atkNeed:1.10, strikeP:.92, throwP:.30, bombP:.95, blindP:.05, delay:130, allInTurn:15, targetRounds:60 },
 };
 const aiProf = ()=> AI_PROFILES[aiDiff] || AI_PROFILES.medium;
+/* 对真人玩家模式（aiSide>=0）：AI 不必为赶回合指标强行激进，可按战局耐心推进 */
+const isVsHuman = ()=> aiSide>=0;
 /* AI 情报记忆：aiMemory[side][enemyId] = 最后目击位置 */
 const aiMemory=[{},{}];
 const aiInterceptors=new Set();   // 本回合派回防拦截的单位 id
@@ -1919,11 +1921,11 @@ function aiPlanDoctrine(side){
   else if(!isHard && enCombat>0 && enNearMyBase>0 && myBaseGuard<enNearMyBase*0.8) doc="defend"; // 中/简单档：视野内敌军逼近且守备不足 → 回防
   else if(race && race.winner===1-side && race.margin>3 && enNearMyBase>0) doc="defend";   // 偷家赛跑明显会输且敌军已逼近 → 回防保家
   else if(enCombat===0) doc="capture";                              // 敌方已无可战之力 → 直接占领终结
-  else if(isHard && turnNo>20) doc="capture";                       // 困难档时机已到 → 全力偷家终结
+  else if(isHard && turnNo>(isVsHuman()?35:20)) doc="capture";      // 困难档时机已到 → 全力偷家终结（对真人更耐心）
   else if(enBaseGuard<enCombat*0.35) doc="capture";                 // 敌主力离家远/老巢空虚 → 偷家
   else if(my>=enCombat*1.6 && enNearMyBase<enCombat*0.6) doc="hunt";  // 兵力碾压且老家无大险 → 歼灭
   else if(my>=enCombat*1.3) doc="hunt";                             // 兵力明显占优 → 歼灭有生力量
-  else if(turnNo>20) doc="capture";                                 // 后期僵持 → 赌一波占领
+  else if(turnNo>(isVsHuman()?40:20)) doc="capture";                // 后期僵持 → 赌一波占领（对真人更耐心）
   else doc="hunt";
   if(doc!==prevDoc && doc==="defend" && homeThreat){
     const tl=baseThreatLevel(side);
@@ -2213,7 +2215,8 @@ function aiGroupCharge(side, vis, prof){
 function aiActOne(p, vis){
   if(!p.alive||acted.has(p.id)) return;
   const u=U(p), prof=aiProf();
-  const allIn = (turnNo>prof.allInTurn);          // 超过目标回合数 → 全面强攻
+  /* 对 AI 对战按回合指标强攻；对真人玩家放宽一倍时间，避免为赶指标送死 */
+  const allIn = (turnNo > (isVsHuman()? prof.allInTurn*2 : prof.allInTurn));
   const doctrine=aiDoctrine[p.side]||"hunt";
 
   if(p.lockAtk&&coLocatedEnemy(p)){
