@@ -1757,7 +1757,7 @@ function stepReplay(d){
 const AI_PROFILES = {
   easy:   { label:"简单", restP:.25, buildP:.25, aimP:.60, atkNeed:1.65, strikeP:.50, throwP:.15, bombP:.60, blindP:.25, delay:340, allInTurn:60, targetRounds:100 },
   medium: { label:"中等", restP:.12, buildP:.15, aimP:.85, atkNeed:1.05, strikeP:.80, throwP:.25, bombP:.85, blindP:.10, delay:220, allInTurn:40, targetRounds:80 },
-  hard:   { label:"困难", restP:.05, buildP:.06, aimP:.96, atkNeed:1.10, strikeP:.92, throwP:.30, bombP:.95, blindP:.05, delay:130, allInTurn:15, targetRounds:60 },
+  hard:   { label:"困难", restP:.05, buildP:.16, aimP:.96, atkNeed:1.10, strikeP:.92, throwP:.30, bombP:.95, blindP:.05, delay:130, allInTurn:15, targetRounds:60 },
 };
 const aiProf = ()=> AI_PROFILES[aiDiff] || AI_PROFILES.medium;
 /* AI 情报记忆：aiMemory[side][enemyId] = 最后目击位置 */
@@ -1988,6 +1988,11 @@ function aiDefPowerAt(r,c,side){
     if(meleeCapable(p)) v+=unitPower(p,false,false);
     else if(U(p).cls==="art"||U(p).cls==="hf") v+=p.troops*0.5;
   }
+  /* 工事/地堡守方加成：贴工事边或格内防空地堡 → 守方实际战力提升（防误判冲锋撞墙） */
+  let fortAdj=false;
+  for(const ek of edgesTouching(r,c)){ if(getFort(ek)){ fortAdj=true; break; } }
+  if(fortAdj) v*=1.2;
+  if(bunker[r][c]>0) v*=1.35;
   return v;
 }
 /* 尝试冲锋：找战力有利的可见敌军格 */
@@ -2052,6 +2057,16 @@ function aiStepToward(p, vis, aims){
     const qr=unkey(k);
     let d=field[qr.r][qr.c];
     if(d===Infinity){ for(const m of aims) d=Math.min(d,Math.abs(qr.r-m.r)+Math.abs(qr.c-m.c)); }
+    /* 散兵线罚分：避开友军密集处，降低被面杀伤（重炮/喀秋莎 3×3）一锅端的风险；
+       权重随难度递减（困难 0.8 / 中等 0.4 / 简单 0.15），避免削弱低档位逼近效率 */
+    const crowdW = aiDiff==="hard" ? 0.45 : (aiDiff==="medium" ? 0.4 : 0.15);
+    let crowd=0;
+    for(const [dr,dc] of ALL8){
+      const ar=qr.r+dr, ac=qr.c+dc;
+      if(ar<0||ac<0||ar>=N||ac>=N) continue;
+      if(corps.some(q=>q.alive&&q.side===p.side&&q!==p&&q.r===ar&&q.c===ac)) crowd++;
+    }
+    d+=crowd*crowdW;
     if(d<bd){ bd=d; best=path; }
   }
   /* 已处于可达范围内场值最低的位置 → 原地不动（避免同值横跳） */
@@ -2213,6 +2228,16 @@ function aiActOne(p, vis){
   const tgt = doctrine==="capture" ? "enemy" : (doctrine==="defend" ? "home" : false);
   if(aiGuardId[p.side]===p.id){ p.resting=true; acted.add(p.id); return; }  // 大本营常驻卫兵：守位即杜绝被偷家
 
+  /* 炮兵/载具护体反应：敌近战逼近（曼哈顿≤2）→ 立即后撤拉开距离，放弃本轮开火 */
+  if(u.ranged){
+    const th=corps.find(e=>e.alive&&e.side!==p.side&&!U(e).air&&meleeCapable(e)
+      &&Math.abs(e.r-p.r)+Math.abs(e.c-p.c)<=2);
+    if(th){
+      const away={r:Math.max(0,Math.min(N-1,p.r+(p.r-th.r)*4)),
+                  c:Math.max(0,Math.min(N-1,p.c+(p.c-th.c)*4))};
+      if(aiStepToward(p,vis,[away])){ acted.add(p.id); return; }
+    }
+  }
   if(p.type==="heavyArt"){
     if(!p.resting){ p.resting=true; acted.add(p.id); return; }
     const q=aiPickTarget(p,vis,strikeRange(p));
