@@ -2,3 +2,5 @@
 .chk.js
 .tmp*
 .api-push-state
+debug-*.js
+.api-token
