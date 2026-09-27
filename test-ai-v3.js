@@ -4,7 +4,7 @@ const fs = require("fs");
 const vm = require("vm");
 const path = require("path");
 
-const html = fs.readFileSync(path.join(__dirname, "battlefield-v3.html"), "utf8");
+const html = fs.readFileSync(path.join(__dirname, "battlefield-v3.6.1.html"), "utf8");
 let code = html.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/\nnewGame\(\);\s*$/, "\n");
 code += `
 globalThis.__T = {
