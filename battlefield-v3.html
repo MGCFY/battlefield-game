@@ -1213,7 +1213,9 @@ function cancelMode(){ mode="idle"; modeData={}; render(); }
 function currentVis(){ return computeVision(current); }
 function startMove(cp){
   const u=U(cp);
-  beginMoveMode(cp, u.charge);
+  /* 可达上限：正常用 move；步兵/骑兵 charge>move 可超速冲锋 1 格；
+     炮兵/载具/空中 charge=0（无冲锋）→ 必须回退到 move，否则一格都动不了 */
+  beginMoveMode(cp, Math.max(u.move, u.charge||0));
 }
 function beginMoveMode(cp, steps){
   const vis=currentVis();
