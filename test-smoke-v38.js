@@ -88,7 +88,7 @@ ok(T.turnNo===2, "完整回合后回合数+1");
 ok(T.battleRecord.length>=2, "每回合生成复盘快照");
 
 /* ---- 5. AI 完整对局（困难 vs 默认）：无异常、60回合内结束 ---- */
-T.aiSide=0; T.aiDiff="hard";
+T.aiSide=-1; T.aiDiff="hard";   // AI-vs-AI 语义：双方均由 aiAct 驱动，保持严格回合指标
 F.newGame();
 // AI 自动部署红方后处于 handoff，人类蓝方自动部署
 T.deployCfg={inf:500,cav:30,lightArt:30,scout:1,heavyArt:15,tank:6,katyusha:2,recon:1,bomber:1};
