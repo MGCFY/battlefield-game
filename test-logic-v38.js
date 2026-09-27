@@ -33,7 +33,7 @@ globalThis.__T = {
   get mode(){return mode}, get modeData(){return modeData},
   get selId(){return selId}, set selId(v){selId=v},
   get nextId(){return nextId}, set nextId(v){nextId=v},
-  UNITS, DEPLOY_TYPES, BASES, N, DEFAULT_BUDGET, RECOMMEND,
+  UNITS, DEPLOY_TYPES, BASES, N, DEFAULT_BUDGET, RECOMMENDS,
   fn: { newGame, genMap, renderDeploy, confirmDeploy, startPlay, endTurn, render,
         computeVision, unitVisibleTo, computeMoveTargets, executeMove, checkWin, checkBaseCapture,
         deploySpent, spawnFromConfig, aiAct, aiDeployConfig, aiTrimBudget,
