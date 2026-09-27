@@ -2880,6 +2880,7 @@ document.addEventListener("click", e=>{
 document.getElementById("board").addEventListener("click", e=>{
   const cell=e.target.closest("[data-cell]");
   if(!cell || phase!=="play" || gameOver || viewLocked()) return;
+  if(dragConsumed){ dragConsumed=false; return; }   // 拖拽松开已完成移动，吞掉本次 click
   const [r,c]=cell.dataset.cell.split(",").map(Number);
   cur={r,c};                                  // 鼠标与键盘光标合一：点击处即光标位置，WASD 可从此继续微调
   if(mode==="move") return boardMove(r,c);
@@ -2913,6 +2914,37 @@ document.getElementById("board").addEventListener("mouseleave", ()=>{
   if(!cur) return;
   const prev=document.querySelector("#board .cell.cursor");
   if(prev) prev.classList.remove("cursor");
+});
+/* ---- 拖拽移动：按住己方兵团直接拖到目标格松开即移动（vs AI 对战同样生效） ---- */
+let dragState=null, dragConsumed=false;
+document.getElementById("board").addEventListener("mousedown", e=>{
+  if(e.button!==0) return;
+  const cell=e.target.closest("[data-cell]");
+  if(!cell || phase!=="play" || gameOver || viewLocked()) return;
+  if(mode!=="idle") return;                       // 其他模式下不启动拖拽，交给原有点击逻辑
+  const [r,c]=cell.dataset.cell.split(",").map(Number);
+  const stack=corps.filter(p=>p.alive && p.r===r && p.c===c && p.side===current);
+  if(!stack.length) return;
+  const pick=stack.find(p=>p.id===selId) || stack.find(p=>!acted.has(p.id)) || stack[0];
+  if(acted.has(pick.id)) return;                  // 已行动单位：仅保持选中查看
+  selId=pick.id;
+  startMove(pick);                                // 直接进入移动模式，高亮全部可达/冲锋格
+  dragState={id:pick.id};
+});
+document.getElementById("board").addEventListener("mouseup", e=>{
+  if(!dragState) return;
+  const st=dragState; dragState=null;
+  const cell=e.target.closest("[data-cell]");
+  if(cell && phase==="play" && !gameOver && !viewLocked() && mode==="move" && modeData.id===st.id){
+    const [r,c]=cell.dataset.cell.split(",").map(Number);
+    const k=key(r,c);
+    if((modeData.empties&&modeData.empties.has(k)) || (modeData.corpsCells&&modeData.corpsCells.has(k))){
+      dragConsumed=true;                          // 吞掉随后的 click，避免重复处理
+      boardMove(r,c);
+      return;
+    }
+  }
+  /* 未落到有效目标：保持移动模式，可继续点击选点或 Esc 取消 */
 });
 document.addEventListener("keydown", e=>{
   if(e.altKey||e.ctrlKey||e.metaKey) return;
