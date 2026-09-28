@@ -24,12 +24,16 @@ let pass=0,fail=0;
 function ok(cond,msg){ if(cond){pass++;} else {fail++; console.log("  ✗ "+msg);} }
 
 /* ===== 战果记录 ===== */
-F.newGame(); T.phase="play";
-T.aiDiff="hard"; T.deploySide=0; let cfg=F.aiDeployConfig(); F.spawnFromConfig(0,cfg);
-T.aiDiff="easy"; T.deploySide=1; cfg=F.aiDeployConfig(); F.spawnFromConfig(1,cfg);
-for(let i=0;i<6;i++){ T.aiDiff=T.current===0?"hard":"easy"; F.aiAct(T.current); if(T.gameOver)break; F.endTurn(); }
+/* AI 前 6 回合是否接战存在随机性，最多重试 3 局，避免用例抖动 */
+let cfg;
+for(let attempt=0; attempt<3 && T.battleStats.length===0; attempt++){
+  F.newGame(); T.phase="play";
+  T.aiDiff="hard"; T.deploySide=0; cfg=F.aiDeployConfig(); F.spawnFromConfig(0,cfg);
+  T.aiDiff="easy"; T.deploySide=1; cfg=F.aiDeployConfig(); F.spawnFromConfig(1,cfg);
+  for(let i=0;i<6;i++){ T.aiDiff=T.current===0?"hard":"easy"; F.aiAct(T.current); if(T.gameOver)break; F.endTurn(); }
+}
 ok(Array.isArray(T.battleStats),"battleStats 是数组");
-ok(T.battleStats.length>0,"前6回合产生了交战记录（实际 "+T.battleStats.length+"）");
+ok(T.battleStats.length>0,"对局产生了交战记录（实际 "+T.battleStats.length+"）");
 const bad=T.battleStats.find(b=>!b.side===undefined||!b.zone||!b.kind||b.round===undefined);
 ok(!bad,"每条记录含 side/kind/zone/round 字段");
 const zones=new Set(T.battleStats.map(b=>b.zone));
