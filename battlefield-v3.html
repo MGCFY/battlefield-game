@@ -104,13 +104,8 @@
   .dot.fat{right:1px;top:1px;background:#ff9100;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
   .dot.dur{right:1px;bottom:1px;width:auto;height:auto;font-size:8px;font-weight:800;color:#fff;
            background:#37474f;border-radius:4px;padding:0 2px;line-height:10px;}
-  .missile-mark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-                font-size:16px;font-weight:900;color:#ff1744;text-shadow:0 0 4px #fff;z-index:4;
-                animation:blink 1s infinite;}
-  @keyframes blink{50%{opacity:.25}}
   .cell.hl-move{outline:2px solid #ffea00;outline-offset:-2px;cursor:pointer;filter:brightness(1.14);}
   .cell.hl-attack{outline:3px solid #ff1744;outline-offset:-2px;cursor:pointer;filter:brightness(1.08);}
-  .cell.hl-ally{outline:3px solid #00e5ff;outline-offset:-2px;cursor:pointer;}
   .cell.hl-build{outline:3px solid #76ff03;outline-offset:-2px;cursor:pointer;}
   .cell.hl-fort{outline:3px solid #ff6d00;outline-offset:-2px;cursor:pointer;}
   .cell.hl-strike{outline:3px solid #d500f9;outline-offset:-2px;cursor:pointer;filter:brightness(1.1);}
@@ -151,8 +146,6 @@
                    display:flex;align-items:center;justify-content:center;flex:none;}
   .mini.red{background:var(--red);} .mini.blue{background:var(--blue);}
   .mini.air{background:#00897b;}
-  .side-title{font-size:12px;font-weight:700;margin:6px 0 2px;}
-  .side-title.red{color:var(--red);} .side-title.blue{color:var(--blue);}
   #log{max-height:230px;overflow-y:auto;font-size:12px;line-height:1.65;display:flex;flex-direction:column;gap:3px;}
   #log .entry{padding:3px 9px;border-left:3px solid #cfd8dc;border-radius:6px;background:rgba(247,249,251,.9);}
   #log .entry.red{border-color:#e53935;background:rgba(255,235,238,.75);}
@@ -249,7 +242,7 @@
   <button class="btn" id="viewBtn" data-action="view-toggle" data-page-node-id="nTmFzb8q2wRvIZNHM30g9u">👁 自动视角</button>
   <button class="btn" id="replayBtn" data-action="show-replay" disabled data-page-node-id="FrcaBQZrt0wVJzbbY14mdY">📼 复盘</button>
   <button class="btn" id="endTurnBtn" data-action="end-turn" data-page-node-id="2mFWnZ9PXXzAigfub1gbne">结束回合</button>
-  <button class="btn" id="newGameBtn" data-action="new-game" data-page-node-id="Aq6wkaMfulPEe32kdbSGuC">重新开局</button>
+  <button class="btn" data-action="new-game" data-page-node-id="Aq6wkaMfulPEe32kdbSGuC">重新开局</button>
 </header>
 
 <main data-page-node-id="DZW80hjlbH4fpOqzNpywAx">
@@ -276,7 +269,7 @@
     <div class="card" id="threatCard" style="display:none" data-page-node-id="OOxUEOKNmBQMTNZzJP71p9">
       <div class="alert" id="threatText" data-page-node-id="Uvl1kBBZwC1JcYxdzzzftN"></div>
     </div>
-    <div class="card" id="selCard" data-page-node-id="7bFFErkiicjOMIi7u7aus1">
+    <div class="card" data-page-node-id="7bFFErkiicjOMIi7u7aus1">
       <h3 data-page-node-id="bDCklqTIFwBrfpc4ylSDYq">军团指挥</h3>
       <div id="selInfo" class="sel-info" data-page-node-id="uLXh63ATAddQC03u9uTi0T">点击棋盘上的己方军团进行指挥。</div>
       <div id="cmdArea" class="cmds" data-page-node-id="Z0dr7nexZo1kSDnvVCRkiO"></div>
@@ -464,7 +457,6 @@ const U = p => UNITS[p.type];
 const typeName = t => UNITS[t].name;
 const isDay = ()=> Math.floor((turnNo-1)/10) % 2 === 0;
 const dayNo = ()=> Math.floor((turnNo-1)/20) + 1;
-function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function grid(v){ return Array.from({length:N},()=>Array(N).fill(v)); }
 const unitTag = p => `${typeName(p.type)}(${p.r+1},${p.c+1})`;
 function sideLog(p){ return p.side===0?"red":"blue"; }
@@ -665,12 +657,6 @@ function unitVisibleTo(u, side, vis){
   const id = smokePatchAt(u.r,u.c);
   if(id!=null) return patchHasUnit(id, side);
   return vis.has(key(u.r,u.c));
-}
-function structVisibleAt(r,c,side,vis){
-  if(!(bunker[r][c]>0) && !edgesTouching(r,c).some(getFort)) return false;
-  const id = smokePatchAt(r,c);
-  if(id!=null && !patchHasUnit(id,side)) return false;
-  return vis.has(key(r,c));
 }
 function enemySizeClass(stack){
   const nonScout = stack.filter(p=>!U(p).scout);
@@ -1026,7 +1012,6 @@ function applyLoss(list, dmg){
 }
 /* 非步骑防守方结算：炮按比例先损75%、无守方步骑则全歼；重火力按比例%掷骰掉耐久；侦察兵被歼 */
 function resolveNonInfDef(defs, ratio, seg){
-  const infLeft = defs.some(p=>p.alive && meleeCapable(p));
   for(const p of defs){
     if(!p.alive) continue;
     const cls=U(p).cls;
@@ -1790,7 +1775,6 @@ function showReplay(){
 }
 function renderReplay(){
   const snap=battleRecord[rpIdx];
-  const T2=T_NAME;
   let cells="";
   for(let r=0;r<N;r++)for(let c=0;c<N;c++){
     const t=snap.fh? (terrain[r][c]) : "plain";
