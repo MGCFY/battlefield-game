@@ -5,7 +5,7 @@ const vm = require("vm");
 const path = require("path");
 
 const html = fs.readFileSync(path.join(__dirname, "battlefield-v3.6.1.html"), "utf8");
-let code = html.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/\nnewGame\(\);\s*$/, "\n");
+let code = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n').replace(/\nnewGame\(\);\s*$/, "\n");
 code += `
 globalThis.__T = {
   get aiSide(){return aiSide}, set aiSide(v){aiSide=v},
