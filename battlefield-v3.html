@@ -2,6 +2,7 @@
 <html lang="zh-CN" data-page-node-id="C0Hn1bBrO42W4XaG3qqNzC">
 <head data-page-node-id="WehtEzcqtqnYWvzKqq4pV6">
 <meta charset="UTF-8" data-page-node-id="NhyYMFAlPPoeqx8iQ9iRIo">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="bDoCYRaAReeY4HQ5GuqaQp">
 <title>战场沙盘策略游戏 v3.8</title>
 <style>
@@ -221,6 +222,12 @@
 </style>
 </head>
 <body data-page-node-id="yAHYTDLw5FAfAoTFk7Tthc">
+<noscript><div style="position:fixed;left:0;right:0;top:0;bottom:0;z-index:999999;background:#263238;color:#fff;padding:24px;font:15px/1.8 sans-serif">
+⚠ 当前环境<b>未启用 JavaScript</b>（微信/QQ 的内置预览经常禁用脚本，无法运行本游戏）。<br>
+请将文件<b>保存到手机/电脑</b>后，用系统浏览器打开：<br>
+· 手机：文件页点「···」→「用其他应用打开」→ 选择浏览器；<br>
+· 电脑：右键文件 → 打开方式 → Chrome / Edge。<br>
+（微信内也可点右上角「···」→「在浏览器打开」）</div></noscript>
 <header data-page-node-id="QjGNJOBrvuoNYVRaQjG4Wj">
   <h1 data-page-node-id="rdajX9pLkQ8gnB2yG9ObeP">⚔ 战场沙盘 v3.8</h1>
   <span id="turnChip" class="turn-chip red" data-page-node-id="iQNFbLrXdsqAOiZJCxrqVU">红方行动</span>
@@ -330,6 +337,18 @@
 <div id="modalWrap" class="hidden" data-page-node-id="Wt3b7QUrRE5ywfkfB8TPqA"><div id="modalCard" data-page-node-id="dETL9CvKt96rhHI6bS49nB"></div></div>
 <div id="deployWrap" class="hidden" data-page-node-id="C2oGf6cggPKp3QQ2FZhVow"><div id="deployCard" data-page-node-id="kkkvgExoanJL9jpeoAswUu"></div></div>
 
+<script>
+/* 兼容哨兵：必须在主脚本之前独立成块——即使主脚本报语法错误（如旧内核不支持新语法）也能给出可见提示 */
+if(typeof window!=="undefined") window.onerror=function(msg, src, line){
+  try{
+    var el=document.getElementById("fatalBar");
+    if(!el){ el=document.createElement("div"); el.id="fatalBar";
+      el.style.cssText="position:fixed;left:0;right:0;top:0;z-index:99999;background:#c62828;color:#fff;padding:8px 12px;font:13px/1.5 sans-serif;";
+      (document.body||document.documentElement).appendChild(el); }
+    el.innerHTML="⚠ 游戏脚本加载出错（第 "+line+" 行）："+msg+"。如果您正在微信/QQ 内打开本文件，请点右上角「···」→「在浏览器打开」，或保存后用系统浏览器（Chrome/Edge/Safari）打开。";
+  }catch(e){}
+};
+</script>
 <script>
 "use strict";
 /* ============================================================
@@ -1278,7 +1297,7 @@ function startMove(cp){
 }
 function beginMoveMode(cp, steps){
   const vis=currentVis();
-  mode="move"; modeData={ id:cp.id, steps, vis, ...computeMoveTargets(cp, steps, vis) };
+  mode="move"; modeData=Object.assign({ id:cp.id, steps, vis }, computeMoveTargets(cp, steps, vis));
   render();
 }
 function boardMove(r,c){
@@ -3143,6 +3162,21 @@ function cycleViewMode(){
 }
 
 /* ---------------- 启动 ---------------- */
+/* 微信/QQ 内置浏览器提示：内核旧或 JS 受限时给出"用浏览器打开"指引 */
+(function(){
+  try{
+    var ua=navigator.userAgent||"";
+    if(/MicroMessenger|QQ\/\d|MQQBrowser/i.test(ua)){
+      var b=document.createElement("div");
+      b.style.cssText="position:fixed;left:0;right:0;bottom:0;z-index:99998;background:#fff8e1;color:#795548;border-top:1px solid #ffe0b2;padding:8px 12px;font:13px/1.6 sans-serif;box-shadow:0 -2px 8px rgba(0,0,0,.15)";
+      b.innerHTML="⚠ 检测到微信/QQ 内置浏览器：若棋盘未显示或无法操作，请点右上角「···」→「在浏览器打开」。<span id='compatClose' style='float:right;cursor:pointer;font-weight:700'>×</span>";
+      document.body.appendChild(b);
+      var c=document.getElementById("compatClose");
+      if(c) c.onclick=function(){ b.remove&&b.remove(); };
+      setTimeout(function(){ try{ b.remove&&b.remove(); }catch(e){} }, 12000);
+    }
+  }catch(e){}
+})();
 newGame();
 </script>
 </body>
