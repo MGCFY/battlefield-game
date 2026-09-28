@@ -1659,58 +1659,106 @@ function boardChargeTarget(r,c){
   for(const p of corps){
     if(p.id===cp.id) continue;
     if(!chargeEligible(p, cp.side)) continue;
-    const mt=computeMoveTargets(p, U(p).charge, vis);
-    if(mt.empties.has(key(r,c))||mt.corpsCells.has(key(r,c))) parts.push(p.id);
+    /* 框选即按行军规则判定（过境即停），保证框选的兵团冲锋合法、执行时同时抵达 */
+    if(!chargeReachable(p, r, c, vis)) continue;
+    parts.push(p.id);
   }
   if(parts.length<1){ log("⚠ 没有可参战的单位。"); return; }
   mode="charge-go"; modeData={ target:[r,c], ids:parts }; render();
 }
-/* 集火执行核心（UI 与 AI 共用）：静默推进所有参战者 → 一次集体冲锋结算 */
+/* 集体冲锋框选判定：按行军规则（过境即停）判定兵团能否合法抵达目标格。
+   返回 {ok, crossed, path} 或 null。可见敌军由 BFS 寻路自动绕行；迷雾中的敌军只能在执行时发现 */
+function chargeReachable(p, r, c, vis){
+  const k=key(r,c);
+  if(p.r===r&&p.c===c) return {ok:true, crossed:false, path:[]};
+  const mt=computeMoveTargets(p, U(p).charge, vis);
+  const path=mt.empties.has(k)?mt.empties.get(k):(mt.corpsCells.get(k)||{}).path;
+  if(!path) return null;
+  /* 过工事强制停止：过边后至多再走1格；目标更远则无法合法抵达 */
+  let crossed=false, sinceCross=0, pr0=p.r, pc0=p.c;
+  for(let i=0;i<path.length;i++){
+    const ek=edgeBetween(pr0,pc0,path[i][0],path[i][1]);
+    if(ek&&getFort(ek)){ crossed=true; sinceCross=1; }
+    else if(crossed){ sinceCross++; if(sinceCross>1) return null; }
+    pr0=path[i][0]; pc0=path[i][1];
+  }
+  return {ok:true, crossed, path};
+}
+/* 集火执行核心（UI 与 AI 共用）：三阶段保证"同时抵达"——
+   阶段一：在同一初始局面上统一判定所有参战兵团的行动（先到者不会挡住后到者）；
+   阶段二：全员同时移动——能抵达的全部进目标格；途中撞见敌军（如迷雾中发现）的兵团
+           就地停下，转为对该敌军的独立冲锋；过境即停够不到目标者留原地不参战；
+   阶段三：结算——途中遭遇战按同格合并为一组独立冲锋先结算，随后目标格一次集体冲锋 */
 function performGroupCharge(initSide, r, c, ids){
-  const arrived=[], movedLogs=[];
+  const arrived=[], movedLogs=[], dropped=[], plans=[], diverted=[];
+  const vis=computeVision(initSide);
+  /* 阶段一：统一评估 */
   for(const id of ids){
     const p=getCorps(id);
     if(!p||!p.alive||!chargeEligible(p,initSide)) continue;
-    if(p.r===r&&p.c===c){ arrived.push(p); acted.add(p.id); continue; }
-    const vis=computeVision(initSide);
-    const mt=computeMoveTargets(p, U(p).charge, vis);
-    const k=key(r,c);
-    let path=mt.empties.has(k)?mt.empties.get(k):(mt.corpsCells.get(k)||{}).path;
-    if(!path) continue;
-    /* 中途有敌军（目标格本身除外）→ 该单位放弃参战（停在原地，不移动） */
-    if(path.slice(0,-1).some(([pr,pc])=>groundEnemyAt(pr,pc,p.side))) continue;
-    /* 过工事强制停止：截断为"过边后再走1格" */
-    let stop=path.length, crossed=false, sinceCross=0;
-    let pr0=p.r, pc0=p.c;
-    for(let i=0;i<path.length;i++){
-      const ek=edgeBetween(pr0,pc0,path[i][0],path[i][1]);
-      const cr = !!(ek&&getFort(ek));
-      if(cr){ crossed=true; sinceCross=1; }
-      else if(crossed){ sinceCross++; if(sinceCross>1){ stop=i; break; } }
-      pr0=path[i][0]; pc0=path[i][1];
+    if(p.r===r&&p.c===c){ plans.push({type:"arrive", p, at:[r,c], steps:0, crossed:false}); continue; }
+    const rc=chargeReachable(p, r, c, vis);
+    if(!rc){ dropped.push(`${unitTag(p)}（无法合法抵达）`); continue; }
+    let cr=p.r, cc=p.c, crossed=false, crossStop=-1, steps=0, divert=null, stopped=false;
+    for(const [nr,nc] of rc.path){
+      if(crossStop===0){ stopped=true; break; }                     // 过境即停：够不到目标
+      const ek=edgeBetween(cr,cc,nr,nc);
+      const crF=!!(ek&&getFort(ek));
+      cr=nr; cc=nc; steps++;
+      if(crF){ crossed=true; crossStop=1; }
+      else if(crossStop>0) crossStop--;
+      if((nr!==r||nc!==c) && groundEnemyAt(nr,nc,p.side)){ divert=[nr,nc]; break; }  // 途中遭遇敌军
     }
-    if(stop<path.length) path=path.slice(0,stop);
-    const startR=p.r, startC=p.c;
-    p.resting=false; p.moved=true;
-    p.r=r; p.c=c;
-    if(crossed) p.__crossed=true;
-    if(path.length>U(p).move) p.fatigue=1;
-    if(!(startR===r&&startC===c)) movedLogs.push(`${unitTag({type:p.type,r:startR,c:startC})} → (${r+1},${c+1})${crossed?"(过工事)":""}`);
-    arrived.push(p); acted.add(p.id);
+    if(divert) plans.push({type:"divert", p, at:divert, steps, crossed});
+    else if(stopped) dropped.push(`${unitTag(p)}（过境即停，够不到目标）`);
+    else plans.push({type:"arrive", p, at:[r,c], steps, crossed});
+  }
+  /* 阶段二：同时移动 */
+  for(const pl of plans){
+    const p=pl.p;
+    if(pl.steps>0){
+      const startR=p.r, startC=p.c;
+      p.resting=false; p.moved=true;
+      p.r=pl.at[0]; p.c=pl.at[1];
+      if(pl.crossed) p.__crossed=true;
+      if(pl.steps>U(p).move) p.fatigue=1;
+      movedLogs.push(`${unitTag({type:p.type,r:startR,c:startC})} → (${pl.at[0]+1},${pl.at[1]+1})${pl.crossed?"(过工事)":""}${pl.type==="divert"?"(途中遇敌,转独立冲锋)":""}`);
+    }
+    if(pl.type==="arrive"){ arrived.push(p); acted.add(p.id); }
+    else { diverted.push({p, at:pl.at}); acted.add(p.id); }
+  }
+  /* 阶段三：结算。途中遭遇战（同格合并为一组）先结算，随后目标格一次集体冲锋 */
+  const groups=new Map();
+  for(const d of diverted){
+    const k=key(d.at[0],d.at[1]);
+    if(!groups.has(k)) groups.set(k,[]);
+    groups.get(k).push(d.p);
+  }
+  const divertedSegs=[];
+  for(const [k,us] of groups){
+    const [gr,gc]=k.split(",").map(Number);
+    divertedSegs.push({r:gr, c:gc, seg:resolveBattle(us,gr,gc)});
   }
   const foes=corps.some(p=>p.alive&&p.side!==initSide&&p.r===r&&p.c===c&&!U(p).air);
   let seg=null;
   if(foes&&arrived.some(p=>meleeCapable(p))) seg=resolveBattle(arrived,r,c);
   else for(const p of arrived) delete p.__crossed;   // 无交战则清除过工事标记
-  return { arrived, seg, movedLogs };
+  return { arrived, seg, movedLogs, dropped, diverted:divertedSegs };
 }
 function confirmCharge(){
   const init=getCorps(modeData.ids[0]); if(!init) return cancelMode();
   const [r,c]=modeData.target;
   const res=performGroupCharge(init.side, r, c, modeData.ids);
-  log(`🎺 集体冲锋 → (${r+1},${c+1})：${res.arrived.length} 支兵团参战${res.movedLogs.length?("（"+res.movedLogs.slice(0,6).join("；")+(res.movedLogs.length>6?"…":"")+"）"):""}`, sideLog(init));
+  log(`🎺 集体冲锋 → (${r+1},${c+1})：${res.arrived.length} 支兵团同时抵达参战${res.movedLogs.length?("（"+res.movedLogs.slice(0,6).join("；")+(res.movedLogs.length>6?"…":"")+"）"):""}`, sideLog(init));
+  const segs=[];
+  for(const dv of res.diverted){
+    log(`⚔ 先锋在 (${dv.r+1},${dv.c+1}) 途中遭遇敌军，转为对该敌军的独立冲锋`, sideLog(init));
+    if(dv.seg && !dv.seg.empty) segs.push(dv.seg);
+  }
+  if(res.seg) segs.push(res.seg);
+  if(res.dropped.length) log(`⚠ 未随队抵达（留原地，不参战）：${res.dropped.join("、")}`, sideLog(init));
   mode="idle"; modeData={}; cur=null;
-  if(res.seg) showBattleModal([res.seg]);
+  if(segs.length) showBattleModal(segs);
   afterCommand();
 }
 function afterCommand(){ render(); if(gameOver && !victoryShown) showVictory(); }
@@ -2243,17 +2291,11 @@ function aiGroupCharge(side, vis, prof){
     for(const p of corps){
       if(!chargeEligible(p,side)) continue;
       if(p.r===t.r&&p.c===t.c){ ids.push(p.id); myPow+=unitPower(p,true,false); continue; }
-      const mt=computeMoveTargets(p,U(p).charge,vis);
-      const info=mt.corpsCells.get(key(t.r,t.c));
-      if(!info) continue;
-      let crossed=false;
-      for(let i=0;i<info.path.length;i++){
-        const prev=i===0?[p.r,p.c]:info.path[i-1];
-        const ek=edgeBetween(prev[0],prev[1],info.path[i][0],info.path[i][1]);
-        if(ek&&getFort(ek)){ crossed=true; break; }
-      }
+      /* 与执行共用合法抵达判定：过境即停够不到目标的不计入冲锋战力 */
+      const rc=chargeReachable(p, t.r, t.c, vis);
+      if(!rc) continue;
       ids.push(p.id);
-      myPow+=unitPower(p,true,crossed);
+      myPow+=unitPower(p,true,rc.crossed);
     }
     if(!ids.length) continue;
     const defPow=aiDefPowerAt(t.r,t.c,side);
@@ -2859,7 +2901,7 @@ function renderPanel(){
         <span style="color:#607d8b">相邻格间工事按密度%判定损毁；防空地堡使伤害密度减半并按密度%掉耐久。</span></div>`;
     }
     else if(mode==="charge"){ const cp2=getCorps(modeData.id);
-      html+=`<div><b>集体冲锋</b>：点击<b style="color:#ff5722">橙色高亮</b>目标格（冲锋范围内，含敌军格）。系统会自动集结本回合能赶到的全部己方步骑一起冲入。</div>`; }
+      html+=`<div><b>集体冲锋</b>：点击<b style="color:#ff5722">橙色高亮</b>目标格（冲锋范围内，含敌军格）。系统会自动集结本回合能赶到的全部己方步骑，同时抵达该格一起冲入；若途中撞见敌军（如迷雾中发现），该兵团就地转为对阻挡敌军的独立冲锋并结算。</div>`; }
     else if(mode==="charge-go"){
       html+=`<div>目标 (${modeData.target[0]+1},${modeData.target[1]+1})，参战兵团 ${modeData.ids.length} 支：</div>
         <div class="targets">${modeData.ids.map(id=>{const o=getCorps(id);return o?`<span>· ${typeName(o.type)} x${o.troops} @ ${posStr(o)}</span>`:"";}).join("")}</div>
