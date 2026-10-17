@@ -24,6 +24,14 @@ const path = require('path');
  *  默认源文件候选（按优先级）
  * ------------------------------------------------------------------ */
 const DEFAULT_SRC = [
+  path.resolve(__dirname, '..', 'battlefield-v3.9.23.html'),
+  path.resolve(__dirname, '..', 'battlefield-v3.9.22.html'),
+  path.resolve(__dirname, '..', 'battlefield-v3.9.21.html'),
+  path.resolve(__dirname, '..', 'battlefield-v3.9.20.html'),
+  path.resolve(__dirname, '..', 'battlefield-v3.9.19.html'),
+  path.resolve(__dirname, '..', 'battlefield-v3.9.18.html'),
+  path.resolve(__dirname, '..', 'battlefield-v3.9.17.html'),
+  path.resolve(__dirname, '..', 'battlefield-v3.9.16.html'),
   path.resolve(__dirname, '..', 'battlefield-v3.9.15.html'),
   path.resolve(__dirname, '..', 'battlefield-v3.9.14.html'),
   path.resolve(__dirname, '..', '..', '..', '..', 'Desktop', 'battlefield-v3.9.13(1).html'),
@@ -296,6 +304,9 @@ globalThis.__H = (function(){
     get acted(){ return acted; }, set acted(v){ acted = v; },
     get deploySide(){ return deploySide; }, set deploySide(v){ deploySide = v; },
     get deployCfg(){ return deployCfg; }, set deployCfg(v){ deployCfg = v; },
+    /* ---- UI 视角 / 悬停（供「真实渲染」模式做端到端 UI 自检；其它模式不触碰） ---- */
+    get viewMode(){ return (typeof viewMode!=="undefined" ? viewMode : null); }, set viewMode(v){ viewMode = v; },
+    get hoverCell(){ return (typeof hoverCell!=="undefined" ? hoverCell : null); }, set hoverCell(v){ hoverCell = v; },
     /* ---- 函数 ---- */
     fn: {
       /* 初始化 / 地图 */

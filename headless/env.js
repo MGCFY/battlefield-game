@@ -167,6 +167,12 @@ function createEnv(opts) {
   const agentSide = opts.side === undefined ? 0 : opts.side;
   const foeSide = 1 - agentSide;
 
+  /* 外部对手模式（League Play 的历史快照需要）：见 step() 与 resumeOpponentTurn()。
+     开启后 env 不再自动驱动 opponent.act，而是把回合停在「轮到对手」，由外部
+     逐个提交对手动作。默认关闭，对既有全部脚本零影响。 */
+  const externalOpponent = !!opts.externalOpponent;
+  let awaitingOpponent = false;
+
   let opponent = null;
   let cfg = null;
   let done = false;
@@ -389,9 +395,18 @@ function createEnv(opts) {
     if (done) return { obs: observe(agentSide), reward: 0, done: true, info: { reason: 'already-done' } };
     const res = applyAction(act);
 
-    // 本方全部行动完 → 推进回合（对手行动 + endTurn）
+    // 本方全部行动完 → 推进回合
     if (pending().length === 0 && !api.get('gameOver')) {
       api.fn.endTurn();
+      if (externalOpponent && !api.get('gameOver')) {
+        // 外部对手模式：不自动跑对手策略，把回合停在「轮到对手」处，
+        // 由调用方（env_server → Python）逐个提交对手动作，见 resumeOpponentTurn()。
+        awaitingOpponent = true;
+        return {
+          obs: observe(agentSide), reward: rewardOf(), done: false,
+          info: { applied: res, turn: api.get('turnNo'), round, awaitingOpponent: true, reason: null },
+        };
+      }
       if (!api.get('gameOver')) {
         opponent.act(api, foeSide, { round, turn: api.get('turnNo'), api });
         if (!api.get('gameOver')) api.fn.endTurn();
@@ -414,10 +429,38 @@ function createEnv(opts) {
     return { obs: observe(agentSide), reward: rewardOf(), done, info };
   }
 
+  /**
+   * 外部对手模式下，Python 把对手全部动作提交完毕后调用本函数收尾：
+   * 结束对手回合、round++，并返回标准的 agent 视角 step 结果。
+   */
+  function resumeOpponentTurn() {
+    if (!awaitingOpponent) {
+      return { obs: observe(agentSide), reward: rewardOf(), done, info: { reason: 'not-awaiting' } };
+    }
+    if (!api.get('gameOver')) api.fn.endTurn();
+    awaitingOpponent = false;
+    round++;
+    const over = api.get('gameOver') || round >= cfg.maxRounds;
+    done = over;
+    const info = {
+      applied: { ok: true },
+      turn: api.get('turnNo'),
+      round,
+      reason: api.get('gameOver')
+        ? (api.fn.hasGround(0) && api.fn.hasGround(1) ? 'capture' : 'elimination')
+        : (over ? 'timeout' : null),
+      winner: api.get('winner'),
+      strength: { mine: api.strength(agentSide), foe: api.strength(1 - agentSide) },
+    };
+    return { obs: observe(agentSide), reward: rewardOf(), done, info };
+  }
+
   return {
     api, agentSide, foeSide,
     reset, step, observe, encode, masks, actionSpace,
     legalActions, legalTypes, legalTargets, pending,
+    resumeOpponentTurn,
+    get awaitingOpponent() { return awaitingOpponent; },
     get done() { return done; },
     get round() { return round; },
     get config() { return cfg; },
